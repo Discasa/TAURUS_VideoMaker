@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.36 - 2026-05-09
+
+- O preview central agora pode reproduzir o vídeo real gerado pelo render de teste.
+- O botão de teste passou a ser Render/Parar para iniciar ou cancelar o render do preview.
+- Adicionado controle de volume do preview no canto inferior direito da área central.
+- Ajustado o texto da opção de GPU para indicar que, se desabilitada, a renderização usa CPU.
+
 ## 8.0.35 - 2026-05-09
 
 - Adicionado seletor de cor para a sombra dos títulos, intro e marca d'água.

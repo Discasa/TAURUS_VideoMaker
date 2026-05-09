@@ -44,8 +44,10 @@ from engine import (
 CONTROL_HEIGHT = 34
 
 try:
-    from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer
+    from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl
     from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen, QPixmap, QTextCursor
+    from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+    from PySide6.QtMultimediaWidgets import QVideoWidget
     from PySide6.QtWidgets import (
         QApplication,
         QAbstractSpinBox,
@@ -847,6 +849,7 @@ class MainUI(QWidget):
         self.setStyleSheet(STYLE_PRIME)
 
         self.worker = None
+        self.render_mode = ""
         self.ultimo_video: Path | None = None
         self.preview_source: Path | None = None
         self.preview_pixmap: QPixmap | None = None
@@ -921,7 +924,7 @@ class MainUI(QWidget):
         render, render_layout = section("Renderização")
         self.set_gpu = ToggleSwitch("Usar GPU NVIDIA/NVENC")
         self.set_gpu.setChecked(True)
-        render_note = QLabel("FFmpeg local incluído no projeto")
+        render_note = QLabel("Se desabilitado, renderiza com CPU. FFmpeg local incluído no projeto.")
         render_note.setObjectName("Subtle")
         render_layout.addWidget(self.set_gpu)
         render_layout.addWidget(render_note)
@@ -950,7 +953,29 @@ class MainUI(QWidget):
         header.addWidget(self.preview_status)
         preview_layout.addLayout(header)
         self.preview = PreviewCanvas()
+        self.video_player = QMediaPlayer(self)
+        self.preview_audio = QAudioOutput(self)
+        self.preview_audio.setVolume(0.50)
+        self.video_player.setAudioOutput(self.preview_audio)
+        self.video_widget = QVideoWidget()
+        self.video_widget.setStyleSheet("background: #000000; border: none;")
+        self.video_player.setVideoOutput(self.video_widget)
+        self.video_widget.hide()
         preview_layout.addWidget(self.preview, 1)
+        preview_layout.addWidget(self.video_widget, 1)
+        volume_row = QHBoxLayout()
+        volume_row.addStretch(1)
+        self.preview_volume_label = QLabel("50%")
+        self.preview_volume_label.setObjectName("Subtle")
+        self.preview_volume_slider = QSlider(Qt.Horizontal)
+        self.preview_volume_slider.setRange(0, 20)
+        self.preview_volume_slider.setValue(10)
+        self.preview_volume_slider.setFixedWidth(150)
+        self.preview_volume_slider.valueChanged.connect(self.set_preview_volume)
+        volume_row.addWidget(QLabel("Volume"))
+        volume_row.addWidget(self.preview_volume_slider)
+        volume_row.addWidget(self.preview_volume_label)
+        preview_layout.addLayout(volume_row)
         layout.addWidget(preview_shell, 1)
 
         transport = QFrame()
@@ -972,8 +997,8 @@ class MainUI(QWidget):
         self.btn_log.clicked.connect(self.toggle_log)
         self.btn_clear_log = ActionButton("Limpar log", "ghost")
         self.btn_clear_log.clicked.connect(lambda: self.log_widget.clear())
-        self.btn_test = ActionButton("Teste 30s", "normal")
-        self.btn_test.clicked.connect(lambda: self.start_render(teste=True))
+        self.btn_test = ActionButton("Render", "normal")
+        self.btn_test.clicked.connect(self.render_preview_toggle)
         self.btn_start = ActionButton("Iniciar", "primary")
         self.btn_start.clicked.connect(self.iniciar_ou_pausar)
         self.btn_cancel = ActionButton("Cancelar", "danger")
@@ -1369,7 +1394,29 @@ class MainUI(QWidget):
         except Exception:
             config = None
         self.extract_preview_frame(self.video_picker.path())
+        if hasattr(self, "video_widget") and self.video_widget.isVisible():
+            return
         self.preview.set_preview(self.preview_pixmap, config)
+
+    def set_preview_volume(self, value: int):
+        volume = max(0.0, min(1.0, value / 20.0))
+        self.preview_audio.setVolume(volume)
+        self.preview_volume_label.setText(f"{value * 5}%")
+
+    def show_static_preview(self):
+        self.video_player.stop()
+        self.video_player.setSource(QUrl())
+        self.video_widget.hide()
+        self.preview.show()
+        self.update_preview()
+
+    def play_preview_video(self, video_path: Path):
+        if not video_path.exists():
+            return
+        self.preview.hide()
+        self.video_widget.show()
+        self.video_player.setSource(QUrl.fromLocalFile(str(video_path)))
+        self.video_player.play()
 
     # ---------- Configuração ----------
 
@@ -1807,10 +1854,16 @@ class MainUI(QWidget):
         self.log_widget.clear()
         self.prog_bar.setValue(0)
         self.ultimo_video = None
+        self.render_mode = "preview" if teste else "final"
         self.lbl_status.setText("Iniciando teste de 30s" if teste else "Iniciando renderização")
-        self.btn_start.setText("Pausar")
-        self.btn_start.setEnabled(True)
-        self.btn_test.setEnabled(False)
+        if teste:
+            self.show_static_preview()
+            self.btn_test.setText("Parar")
+            self.btn_start.setEnabled(False)
+        else:
+            self.btn_start.setText("Pausar")
+            self.btn_start.setEnabled(True)
+            self.btn_test.setEnabled(False)
         self.btn_cancel.setEnabled(True)
         self.worker = WorkerRender(config, modo="teste_30s" if teste else "final")
         self.worker.log.connect(self.log_msg)
@@ -1828,6 +1881,14 @@ class MainUI(QWidget):
         else:
             self.start_render(teste=False)
 
+    def render_preview_toggle(self):
+        if self.worker and self.worker.isRunning() and self.render_mode == "preview":
+            self.cancelar_render()
+            return
+        if self.worker and self.worker.isRunning():
+            return
+        self.start_render(teste=True)
+
     def cancelar_render(self):
         if not self.worker or not self.worker.isRunning():
             return
@@ -1844,17 +1905,22 @@ class MainUI(QWidget):
         self.btn_start.setText("Iniciar")
         self.btn_start.setEnabled(True)
         self.btn_test.setEnabled(True)
+        self.btn_test.setText("Render")
         self.btn_cancel.setEnabled(False)
         if sucesso:
             self.ultimo_video = Path(caminho_saida)
             self.prog_bar.setValue(100)
             self.lbl_status.setText("Finalizado com sucesso")
-            QMessageBox.information(self, "Finalizado", f"{mensagem}\n\n{caminho_saida}")
+            if self.render_mode == "preview":
+                self.play_preview_video(self.ultimo_video)
+            else:
+                QMessageBox.information(self, "Finalizado", f"{mensagem}\n\n{caminho_saida}")
         else:
             self.prog_bar.setValue(0)
             self.lbl_status.setText("Cancelado" if "cancel" in mensagem.lower() else "Erro")
             if "cancel" in mensagem.lower():
-                QMessageBox.information(self, "Cancelado", mensagem)
+                if self.render_mode != "preview":
+                    QMessageBox.information(self, "Cancelado", mensagem)
             else:
                 log_path = SCRIPT_DIR / "erro_ffmpeg_log.txt"
                 try:
@@ -1868,6 +1934,7 @@ class MainUI(QWidget):
                 msg.setInformativeText(f"O log foi salvo em:\n{log_path}")
                 msg.setDetailedText(mensagem)
                 msg.exec()
+        self.render_mode = ""
         self.worker = None
 
     def abrir_pasta_saida(self):
