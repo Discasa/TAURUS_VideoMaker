@@ -515,6 +515,7 @@ class PreviewCanvas(QWidget):
             self._draw_watermark(painter, frame)
 
         painter.setPen(QColor("#5EA0FF"))
+        painter.setBrush(Qt.NoBrush)
         painter.drawRoundedRect(frame, 10, 10)
 
     def _video_rect(self) -> QRectF:
