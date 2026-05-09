@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.13 - 2026-05-09
+
+- Substituído o seletor visual de fontes por uma lista compacta com nomes das fontes do sistema.
+- Limitada a quantidade de itens visíveis no seletor de fontes para evitar que a lista saia da interface.
+- O campo hexadecimal de cor agora exibe o texto na própria cor selecionada e atualiza ao editar ou escolher uma nova cor.
+
 ## 8.0.12 - 2026-05-09
 
 - Renomeado o campo da intro para `Música começa após`, deixando claro que ele atrasa a entrada da música principal.

@@ -37,10 +37,10 @@ from engine import (
 
 try:
     from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer
-    from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QPainter, QTextCursor
+    from PySide6.QtGui import QColor, QCursor, QFontDatabase, QPainter, QTextCursor
     from PySide6.QtWidgets import (
         QApplication, QAbstractSpinBox, QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox,
-        QFileDialog, QFontComboBox, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+        QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
         QMessageBox, QProgressBar, QPushButton, QScrollArea, QSizePolicy, QSlider, QSpinBox, QTextEdit,
         QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QStackedWidget, QListWidget, QListWidgetItem,
         QGroupBox, QFormLayout
@@ -96,14 +96,14 @@ QLabel#AppTitle {
     font-weight: bold;
     color: #FFFFFF;
 }
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QFontComboBox, QTextEdit {
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
     background: #151516;
     border: 1px solid #383A3F;
     border-radius: 4px;
     padding: 3px 6px;
     min-height: 22px;
 }
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QFontComboBox:focus {
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
     border: 1px solid #5EA0FF;
     background: #1B1D20;
 }
@@ -374,6 +374,48 @@ def registrar_fontes_do_sistema():
 
     _FONTES_DO_SISTEMA_REGISTRADAS = True
 
+def criar_combo_fontes() -> QComboBox:
+    registrar_fontes_do_sistema()
+    combo = QComboBox()
+    combo.setMaxVisibleItems(12)
+    combo.setMinimumContentsLength(22)
+    combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+    combo.view().setTextElideMode(Qt.ElideRight)
+
+    fontes = sorted(set(QFontDatabase.families()), key=str.casefold)
+    if not fontes:
+        fontes = ["Segoe UI", "Arial", "Georgia"]
+    combo.addItems(fontes)
+
+    indice = combo.findText("Segoe UI")
+    if indice < 0:
+        indice = combo.findText("Arial")
+    combo.setCurrentIndex(max(0, indice))
+    combo.setToolTip("Lista de fontes instaladas no sistema.")
+    return combo
+
+def atualizar_estilo_campo_cor(campo: QLineEdit):
+    cor = limpar_hex(campo.text())
+    qcor = QColor(cor)
+    if not qcor.isValid():
+        cor = "#E0E0E0"
+
+    campo.setStyleSheet(f"""
+        QLineEdit {{
+            background: #151516;
+            border: 1px solid #383A3F;
+            border-radius: 4px;
+            padding: 3px 6px;
+            min-height: 22px;
+            color: {cor};
+            font-weight: 700;
+        }}
+        QLineEdit:focus {{
+            border: 1px solid #5EA0FF;
+            background: #1B1D20;
+        }}
+    """)
+
 # ---------- Páginas da Sidebar ----------
 
 class PageMedia(QWidget):
@@ -432,13 +474,11 @@ class PageTitles(QWidget):
         grp = QGroupBox("Tipografia e Posição")
         fl = QFormLayout(grp)
 
-        registrar_fontes_do_sistema()
-        self.mw.font_titles = QFontComboBox()
-        self.mw.font_titles.setFontFilters(QFontComboBox.FontFilter.AllFonts)
-        self.mw.font_titles.setWritingSystem(QFontDatabase.WritingSystem.Any)
-        self.mw.font_titles.setToolTip("Lista de fontes instaladas no sistema.")
+        self.mw.font_titles = criar_combo_fontes()
         self.mw.font_titles_size = QSpinBox(); self.mw.font_titles_size.setRange(8,160)
         self.mw.font_titles_color = QLineEdit()
+        self.mw.font_titles_color.textChanged.connect(lambda: atualizar_estilo_campo_cor(self.mw.font_titles_color))
+        atualizar_estilo_campo_cor(self.mw.font_titles_color)
         btn_color = ModernButton("Cor")
         btn_color.clicked.connect(lambda: self.pick_color(self.mw.font_titles_color))
         c_layout = QHBoxLayout()
@@ -744,7 +784,7 @@ class MainUI(QWidget):
     # --- Mapeamento Config <-> UI ---
     def get_config_obj(self, validar: bool = True) -> RenderConfig:
         f_txt = FonteTextoConfig(
-            font_family=self.font_titles.currentFont().family(),
+            font_family=self.font_titles.currentText(),
             font_size=self.font_titles_size.value(),
             color=limpar_hex(self.font_titles_color.text()),
             position=self.font_titles_pos.currentData(),
@@ -871,9 +911,12 @@ class MainUI(QWidget):
         f = dados.get("fonte_texto", {})
         familia = f.get("font_family")
         if familia:
-            self.font_titles.setCurrentFont(QFont(str(familia)))
+            idx = self.font_titles.findText(str(familia))
+            if idx >= 0:
+                self.font_titles.setCurrentIndex(idx)
         self.font_titles_size.setValue(int(f.get("font_size", self.font_titles_size.value())))
         self.font_titles_color.setText(str(f.get("color", self.font_titles_color.text()) or "#FFFFFF"))
+        atualizar_estilo_campo_cor(self.font_titles_color)
         idx = self.font_titles_pos.findData(f.get("position", self.font_titles_pos.currentData()))
         if idx >= 0:
             self.font_titles_pos.setCurrentIndex(idx)
