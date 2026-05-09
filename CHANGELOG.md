@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.33 - 2026-05-09
+
+- Removido o botão redundante de carregar músicas da subaba Músicas.
+- Removida a descrição inferior da subaba Músicas para deixar a área mais limpa.
+
 ## 8.0.32 - 2026-05-09
 
 - A aba Títulos agora tem subabas para separar configurações de fonte e títulos das músicas.

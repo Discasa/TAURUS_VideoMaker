@@ -1032,22 +1032,15 @@ class MainUI(QWidget):
 
         row = QHBoxLayout()
         row.addStretch(1)
-        self.btn_refresh_titles = ActionButton("Carregar músicas", "ghost", 140)
         self.btn_auto_titles = ActionButton("Gerar títulos", "normal", 130)
         self.btn_clear_titles = ActionButton("Limpar títulos", "ghost", 130)
-        self.btn_refresh_titles.clicked.connect(self.refresh_track_titles_table)
         self.btn_auto_titles.clicked.connect(self.auto_fill_track_titles)
         self.btn_clear_titles.clicked.connect(self.clear_track_titles)
-        row.addWidget(self.btn_refresh_titles)
         row.addWidget(self.btn_auto_titles)
         row.addWidget(self.btn_clear_titles)
         row.addStretch(1)
         layout.addLayout(row)
 
-        note = QLabel("Edite a coluna de título quando quiser substituir o nome automático de uma música.")
-        note.setObjectName("Subtle")
-        note.setAlignment(Qt.AlignCenter)
-        layout.addWidget(note)
         layout.addStretch(1)
         return tab
 
