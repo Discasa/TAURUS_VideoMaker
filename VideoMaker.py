@@ -41,7 +41,7 @@ from engine import (
 
 try:
     from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer
-    from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPixmap, QTextCursor
+    from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen, QPixmap, QTextCursor
     from PySide6.QtWidgets import (
         QApplication,
         QAbstractSpinBox,
@@ -273,6 +273,7 @@ class ActionButton(QPushButton):
         self.setMinimumWidth(width)
         self.setFixedHeight(34)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.setFlat(True)
         self.refresh_style()
 
     def refresh_style(self):
@@ -282,20 +283,32 @@ class ActionButton(QPushButton):
             "danger": ("#8A3A4A", "#A94C5F", "#FFFFFF", "#703040"),
             "ghost": ("#111B2B", "#18263A", "#CFE2FF", "#31415C"),
         }
-        bg, hover, text, border = palette.get(self.kind, palette["normal"])
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background: {bg};
-                color: {text};
-                border: 1px solid {border};
-                border-radius: 18px;
-                padding: 5px 12px;
-                font-weight: 700;
-            }}
-            QPushButton:hover {{ background: {hover}; }}
-            QPushButton:pressed {{ background: {border}; }}
-            QPushButton:disabled {{ background: #101826; color: #5F6E84; border-color: #243148; }}
-        """)
+        self._colors = palette.get(self.kind, palette["normal"])
+        self.setStyleSheet("")
+        self.update()
+
+    def paintEvent(self, event):
+        bg, hover, text, border = self._colors
+        if not self.isEnabled():
+            bg, text, border = "#101826", "#5F6E84", "#243148"
+        elif self.isDown():
+            bg = border
+        elif self.underMouse():
+            bg = hover
+
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect().adjusted(0, 0, -1, -1)
+        radius = rect.height() / 2
+        painter.setPen(QPen(QColor(border), 1))
+        painter.setBrush(QColor(bg))
+        painter.drawRoundedRect(QRectF(rect), radius, radius)
+
+        font = self.font()
+        font.setWeight(QFont.Weight.Bold)
+        painter.setFont(font)
+        painter.setPen(QColor(text))
+        painter.drawText(self.rect(), Qt.AlignCenter, self.text())
 
 
 class ToggleSwitch(QCheckBox):

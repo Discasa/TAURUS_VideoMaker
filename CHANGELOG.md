@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.23 - 2026-05-09
+
+- Corrigido o desenho dos botões para garantir formato pílula em toda a interface.
+
 ## 8.0.22 - 2026-05-09
 
 - Simplificado o título da área central para `Preview`.

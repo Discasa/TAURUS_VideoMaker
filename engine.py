@@ -32,7 +32,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.22"
+APP_VERSION = "8.0.23"
 
 
 def obter_diretorio_aplicacao() -> Path:
