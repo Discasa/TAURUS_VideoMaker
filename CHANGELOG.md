@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.5 - 2026-05-09
+
+- Refeito o visual do slider de volume do som de fundo em estilo pílula.
+- Alterada a bolinha do slider para azul.
+- Mantido o slider sempre clicável, mesmo antes de selecionar o arquivo de som de fundo.
+
 ## 8.0.4 - 2026-05-09
 
 - Ajustado o slider de volume do som de fundo para aceitar apenas múltiplos de 10%.

@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.4.
+Versão 8.0.5.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.4"
+APP_VERSION = "8.0.5"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -3499,31 +3499,31 @@ QProgressBar::chunk {
     background: #6C727A;
     border-radius: 8px;
 }
-QSlider::groove:horizontal {
-    background: #1B1C1E;
-    border: 1px solid #4A4D52;
-    border-radius: 5px;
-    height: 10px;
+QSlider {
+    min-height: 28px;
 }
-QSlider::handle:horizontal {
-    background: #C8CCD2;
-    border: 1px solid #F0F0F0;
-    border-radius: 8px;
-    width: 16px;
-    margin: -4px 0;
+QSlider::groove:horizontal {
+    background: #272B31;
+    border: 1px solid #56606B;
+    border-radius: 9px;
+    height: 18px;
 }
 QSlider::sub-page:horizontal {
-    background: #6C727A;
-    border-radius: 5px;
+    background: #1E88FF;
+    border: 1px solid #61AEFF;
+    border-radius: 9px;
 }
-QSlider:disabled::groove:horizontal,
-QSlider:disabled::sub-page:horizontal {
-    background: #2A2C30;
-    border-color: #3A3D42;
+QSlider::add-page:horizontal {
+    background: #272B31;
+    border: 1px solid #56606B;
+    border-radius: 9px;
 }
-QSlider:disabled::handle:horizontal {
-    background: #666A70;
-    border-color: #777B82;
+QSlider::handle:horizontal {
+    background: #1E88FF;
+    border: 2px solid #BFDFFF;
+    border-radius: 12px;
+    width: 24px;
+    margin: -4px 0;
 }
 QScrollArea {
     border: none;
@@ -3682,7 +3682,7 @@ class MainWindow(QWidget):
         self.bg_volume.setRange(0, 20)
         self.bg_volume.setSingleStep(1)
         self.bg_volume.setPageStep(1)
-        self.bg_volume.setTickPosition(QSlider.TicksBelow)
+        self.bg_volume.setTickPosition(QSlider.NoTicks)
         self.bg_volume.setTickInterval(1)
         self.bg_volume.setValue(3)
         self.bg_volume.setMinimumWidth(160)
@@ -3962,9 +3962,8 @@ class MainWindow(QWidget):
         normalizacao_ativa = self.toggle_norm.isChecked()
         for widget in (self.target_lufs, self.true_peak, self.lra):
             widget.setEnabled(normalizacao_ativa)
-        fundo_ativo = bool(self.bg_audio_picker.path())
         for widget in (self.bg_volume_title, self.bg_volume, self.bg_volume_value):
-            widget.setEnabled(fundo_ativo)
+            widget.setEnabled(True)
 
     def _setup_autosave(self):
         self.autosave_timer = QTimer(self)
