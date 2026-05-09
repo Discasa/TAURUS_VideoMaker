@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.41 - 2026-05-09
+
+- Ajustada a descrição da opção de renderização para ocupar duas linhas sem cortar texto.
+
 ## 8.0.40 - 2026-05-09
 
 - Corrigido o estilo do log aberto, que herdava altura máxima dos campos compactos.
