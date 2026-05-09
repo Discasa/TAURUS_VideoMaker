@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.43 - 2026-05-09
+
+- Centralizado verticalmente o conjunto de preview e controle de volume no painel central.
+
 ## 8.0.42 - 2026-05-09
 
 - Removido o fundo próprio dos sliders para combinar com o painel onde estão inseridos.

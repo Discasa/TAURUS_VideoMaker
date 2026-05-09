@@ -729,7 +729,7 @@ class PreviewCanvas(QWidget):
             height = area.height()
             width = int(height * ratio)
         x = area.x() + (area.width() - width) / 2
-        y = area.y() + area.height() - height
+        y = area.y() + (area.height() - height) / 2
         return QRectF(x, y, width, height)
 
     def _positioned_rect(self, frame: QRectF, size: QSize, position: str, margin_x: int, margin_y: int) -> QRectF:
@@ -980,8 +980,11 @@ class MainUI(QWidget):
         self.video_player.setVideoOutput(self.video_widget)
         self.video_player.mediaStatusChanged.connect(self.loop_preview_video)
         self.video_widget.hide()
-        preview_layout.addWidget(self.preview, 1)
-        preview_layout.addWidget(self.video_widget, 1)
+        self.preview.setFixedHeight(380)
+        self.video_widget.setFixedHeight(380)
+        preview_layout.addStretch(1)
+        preview_layout.addWidget(self.preview)
+        preview_layout.addWidget(self.video_widget)
         volume_row = QHBoxLayout()
         volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.addStretch(1)
@@ -996,6 +999,7 @@ class MainUI(QWidget):
         volume_row.addWidget(self.preview_volume_slider)
         volume_row.addWidget(self.preview_volume_label)
         preview_layout.addLayout(volume_row)
+        preview_layout.addStretch(1)
         layout.addWidget(preview_shell, 1)
 
         transport = QFrame()
