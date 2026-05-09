@@ -23,6 +23,9 @@ Requisitos:
 FFmpeg esperado em:
     ./ffmpeg/bin/ffmpeg.exe
     ./ffmpeg/bin/ffprobe.exe
+
+Quando empacotado como executável, os binários devem ser incluídos como dados
+do pacote no mesmo caminho interno: ffmpeg/bin/.
 """
 
 import ctypes
@@ -44,8 +47,22 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-SCRIPT_DIR = Path(__file__).resolve().parent
-FFMPEG_BIN = SCRIPT_DIR / "ffmpeg" / "bin"
+def obter_diretorio_aplicacao() -> Path:
+    if getattr(sys, "frozen", False):
+        return Path(sys.executable).resolve().parent
+    return Path(__file__).resolve().parent
+
+
+def obter_diretorio_recursos() -> Path:
+    pacote_temporario = getattr(sys, "_MEIPASS", None)
+    if pacote_temporario:
+        return Path(pacote_temporario).resolve()
+    return obter_diretorio_aplicacao()
+
+
+SCRIPT_DIR = obter_diretorio_aplicacao()
+RESOURCE_DIR = obter_diretorio_recursos()
+FFMPEG_BIN = RESOURCE_DIR / "ffmpeg" / "bin"
 TEMP_DIR = SCRIPT_DIR / "_temp_audio_processado"
 CONFIG_JSON_PATH = SCRIPT_DIR / "video_creator_config.json"  # JSON salvo ao lado deste script
 

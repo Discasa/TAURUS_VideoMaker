@@ -1,19 +1,26 @@
 # LoFi VideoMaker
 
-LoFi VideoMaker is a Windows desktop tool for building long lo-fi videos from a base video/GIF/image and a folder of music tracks. It provides a PySide6 interface, FFmpeg-based rendering, optional NVIDIA NVENC acceleration, loudness normalization, fade controls, background audio mixing, title overlays, watermark controls, and intro text effects.
+LoFi VideoMaker é um aplicativo de desktop para Windows que cria vídeos lo-fi a partir de uma mídia visual base e uma pasta de músicas. A interface é feita em PySide6 e a renderização é executada pelo FFmpeg local incluído no projeto.
 
-## Requirements
+## Recursos
 
-- Windows 10 or newer.
-- Python 3.10 or newer.
-- Python dependency: `PySide6`.
-- Local FFmpeg runtime in `ffmpeg/bin/` beside the script:
-  - `ffmpeg/bin/ffmpeg.exe`
-  - `ffmpeg/bin/ffprobe.exe`
+- Seleção de vídeo, GIF ou imagem base.
+- Seleção de uma pasta com músicas.
+- Áudio de fundo opcional.
+- Renderização por CPU/libx264 ou GPU NVIDIA/NVENC.
+- Normalização de loudness com `loudnorm`.
+- Fade in e fade out configuráveis.
+- Texto com nome das faixas, marca d'água e frases de introdução.
+- Configurações salvas automaticamente em JSON ao lado do aplicativo.
 
-This workspace already has a local FFmpeg copy in that folder. The binaries are ignored by Git because they are large.
+## Requisitos
 
-## Quick Start
+- Windows 10 ou mais recente.
+- Python 3.10 ou mais recente.
+- Dependências Python em [requirements.txt](requirements.txt).
+- Git LFS para clonar os binários do FFmpeg quando o repositório vier de um remoto.
+
+## Como Rodar Pelo Código-Fonte
 
 ```powershell
 cd F:\scripts\GitHub\LoFi_VideoMaker
@@ -22,28 +29,35 @@ py -m venv .venv
 .\.venv\Scripts\python.exe .\lofi_videomaker_v8.py
 ```
 
-Or run:
+O script espera encontrar o FFmpeg nestes caminhos dentro do projeto:
 
-```powershell
-.\start.bat
+```text
+ffmpeg/bin/ffmpeg.exe
+ffmpeg/bin/ffprobe.exe
 ```
 
-## Repository Layout
+Esses arquivos são rastreados com Git LFS porque são grandes. Depois de clonar o repositório, execute `git lfs pull` se os executáveis não estiverem presentes.
+
+## Estrutura
 
 ```text
 LoFi_VideoMaker/
-  lofi_videomaker_v8.py       Main PySide6 application
-  start.bat                   Windows launcher
-  requirements.txt            Python runtime dependencies
-  ffmpeg/bin/                 Local FFmpeg runtime used by the app
-  README.md                   Project overview
-  documentation.md            Detailed usage and maintenance notes
-  CHANGELOG.md                Project history
-  LICENSE                     Project license
-  THIRD_PARTY_NOTICES.md      FFmpeg notice
+  lofi_videomaker_v8.py       Aplicativo principal em PySide6
+  requirements.txt            Dependências de execução
+  requirements-dev.txt        Dependências de empacotamento
+  build_executable.ps1        Preparação futura do executável
+  packaging/                  Arquivos do PyInstaller
+  ffmpeg/bin/                 FFmpeg local usado pelo aplicativo
+  README.md                   Visão geral
+  documentation.md            Documentação detalhada
+  CHANGELOG.md                Histórico de mudanças
+  LICENSE                     Licença do código do projeto
+  THIRD_PARTY_NOTICES.md      Avisos sobre dependências de terceiros
 ```
 
-## Notes
+## Futuro Executável
 
-The application saves its UI settings to `video_creator_config.json` beside the script and writes FFmpeg error details to `erro_ffmpeg_log.txt` when a render fails. Those files are local runtime artifacts and are ignored by Git.
+O código já separa a pasta do aplicativo da pasta de recursos empacotados. Isso permite que um executável futuro salve configurações e logs ao lado do `.exe`, enquanto `ffmpeg.exe` e `ffprobe.exe` ficam embutidos como recursos do pacote.
+
+O arquivo [packaging/LoFi_VideoMaker.spec](packaging/LoFi_VideoMaker.spec) já inclui os binários do FFmpeg no caminho interno `ffmpeg/bin/`.
 

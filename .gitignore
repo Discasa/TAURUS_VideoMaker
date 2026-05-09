@@ -13,9 +13,6 @@ output/
 outputs/
 rendered/
 renders/
-
-# Local FFmpeg runtime copied beside the app. Keep it local because the
-# Windows binaries are large and may exceed hosted Git repository limits.
-ffmpeg/bin/ffmpeg.exe
-ffmpeg/bin/ffprobe.exe
+build/
+dist/
 

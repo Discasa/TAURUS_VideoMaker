@@ -1,53 +1,101 @@
-# LoFi VideoMaker Documentation
+# Documentação do LoFi VideoMaker
 
-## Purpose
+## Objetivo
 
-LoFi VideoMaker creates rendered lo-fi videos by combining visual media, music tracks, optional background audio, text overlays, watermark settings, and intro text effects through FFmpeg.
+O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, uma sequência de músicas, áudio de fundo opcional, textos, marca d'água e efeitos de introdução. O processamento de mídia é feito com FFmpeg.
 
-## Running the Application
+## Execução em Modo Fonte
 
-1. Open PowerShell in the project folder.
-2. Create and activate a virtual environment if one does not already exist.
-3. Install dependencies with `pip install -r requirements.txt`.
-4. Start the app with `python lofi_videomaker_v8.py` or `start.bat`.
+Use PowerShell na pasta do projeto:
 
-## FFmpeg Runtime
+```powershell
+cd F:\scripts\GitHub\LoFi_VideoMaker
+py -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe .\lofi_videomaker_v8.py
+```
 
-The script is configured to use the local runtime first:
+Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [lofi_videomaker_v8.py](lofi_videomaker_v8.py).
+
+## FFmpeg Local
+
+O aplicativo usa a cópia local do FFmpeg:
 
 ```text
 ffmpeg/bin/ffmpeg.exe
 ffmpeg/bin/ffprobe.exe
 ```
 
-Keep both files together. `ffprobe.exe` is required because the app measures media durations before rendering.
+O `ffmpeg.exe` faz a renderização e o `ffprobe.exe` mede duração e metadados das mídias. Os dois precisam permanecer juntos.
 
-The FFmpeg binaries are intentionally not tracked in Git. If the project is cloned on another machine, copy a Windows FFmpeg build into `ffmpeg/bin/` before running renders.
+Os binários são versionados com Git LFS. Se eles aparecerem como arquivos pequenos de texto depois de um clone, instale o Git LFS e execute:
 
-## Inputs
+```powershell
+git lfs install
+git lfs pull
+```
 
-- Base visual media: `.mp4`, `.mov`, `.mkv`, `.avi`, `.webm`, `.gif`, or supported image files.
-- Music folder: audio tracks such as `.mp3`, `.wav`, `.m4a`, `.aac`, `.flac`, `.ogg`, `.opus`, or `.wma`.
-- Optional background audio: mixed under the main music track at the configured volume.
+## Entradas Aceitas
 
-## Rendering
+Mídia visual base:
 
-The app can render with CPU/libx264 or NVIDIA NVENC when supported by the local FFmpeg build and GPU driver. If `h264_nvenc` is unavailable, the script falls back to CPU rendering.
+- `.mp4`
+- `.mov`
+- `.mkv`
+- `.avi`
+- `.webm`
+- `.gif`
+- imagens compatíveis com o fluxo do aplicativo
 
-Temporary audio files are written to `_temp_audio_processado/`. Failed FFmpeg logs are written to `erro_ffmpeg_log.txt`.
+Áudios:
 
-## Configuration
+- `.mp3`
+- `.wav`
+- `.m4a`
+- `.aac`
+- `.flac`
+- `.ogg`
+- `.opus`
+- `.wma`
 
-User choices are persisted in `video_creator_config.json` beside the script. This file is local machine state and should not be committed.
+## Arquivos Gerados Localmente
 
-## Maintenance
+Estes arquivos e pastas são estado local da máquina e não devem ser versionados:
 
-- Keep generated renders outside source control.
-- Keep FFmpeg binaries local unless a release packaging workflow is added.
-- After changing FFmpeg command generation, run a short test render and confirm `ffmpeg/bin/ffmpeg.exe` appears in the log path or process command.
-- After UI or config changes, run:
+- `_temp_audio_processado/`
+- `video_creator_config.json`
+- `erro_ffmpeg_log.txt`
+- `build/`
+- `dist/`
+- pastas de saída de renderização
+
+## Preparação Para Executável
+
+O script agora usa dois conceitos diferentes de caminho:
+
+- pasta do aplicativo: onde ficam configurações, logs e arquivos temporários;
+- pasta de recursos: onde ficam arquivos empacotados, como `ffmpeg.exe` e `ffprobe.exe`.
+
+Em modo fonte, as duas apontam para a pasta do projeto. Em modo executável empacotado com PyInstaller, a pasta de recursos aponta para o diretório temporário interno extraído pelo pacote, enquanto configurações e logs continuam ao lado do executável final.
+
+O arquivo [packaging/LoFi_VideoMaker.spec](packaging/LoFi_VideoMaker.spec) já declara os binários do FFmpeg como recursos internos no caminho `ffmpeg/bin/`.
+
+Quando chegar a hora de gerar o executável, o comando esperado é:
+
+```powershell
+.\build_executable.ps1
+```
+
+O resultado será gerado em `dist/LoFi_VideoMaker.exe`.
+
+## Validação Recomendada
+
+Depois de alterar o código:
 
 ```powershell
 .\.venv\Scripts\python.exe -m py_compile .\lofi_videomaker_v8.py
+.\ffmpeg\bin\ffmpeg.exe -hide_banner -encoders
 ```
+
+Antes de publicar uma versão empacotada, faça pelo menos uma renderização curta de teste e confira se o modo CPU e o modo NVENC continuam funcionando.
 

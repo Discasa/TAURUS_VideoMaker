@@ -1,9 +1,12 @@
-# Changelog
+# Histórico de Mudanças
 
 ## 2026-05-09
 
-- Created the project repository structure.
-- Added README, detailed documentation, changelog, license, requirements, launcher, and third-party notices.
-- Copied a local FFmpeg runtime beside the script in `ffmpeg/bin/`.
-- Updated the app to use the local FFmpeg and FFprobe executables.
+- Criada a estrutura inicial do repositório.
+- Adicionados README, documentação detalhada, histórico de mudanças, licença, dependências, avisos de terceiros e arquivos de preparação para empacotamento.
+- Copiada uma versão local do FFmpeg para `ffmpeg/bin/`.
+- Ajustado o aplicativo para usar `ffmpeg.exe` e `ffprobe.exe` locais.
+- Removido o `start.bat`; o ponto de entrada passa a ser o script Python.
+- Preparado o código para funcionar futuramente como executável empacotado.
+- Passado o rastreamento dos binários do FFmpeg para Git LFS.
 
