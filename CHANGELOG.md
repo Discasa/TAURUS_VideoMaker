@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.26 - 2026-05-09
+
+- Definida a normalização de loudness como ativa por padrão.
+- Aplicados os valores padrão do YouTube: `-14 LUFS` e `-1 dBTP`.
+- Adicionada migração para corrigir configurações antigas salvas com normalização desligada e valores zerados.
+
 ## 8.0.25 - 2026-05-09
 
 - Corrigido artefato visual no topo dos botões em formato pílula.

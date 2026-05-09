@@ -1285,9 +1285,14 @@ class MainUI(QWidget):
             self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 10))
 
             norm = data.get("normalizacao", {})
-            self.set_norm.setChecked(bool(norm.get("enabled", True)))
-            self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
-            self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
+            if self.normalizacao_config_antiga_zerada(str(data.get("app_version", "")), norm):
+                self.set_norm.setChecked(True)
+                self.set_lufs.setValue(-14.0)
+                self.set_peak.setValue(-1.0)
+            else:
+                self.set_norm.setChecked(bool(norm.get("enabled", True)))
+                self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
+                self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
 
             self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
             self.apply_watermark_config(WatermarkConfig(**{k: v for k, v in data.get("watermark", {}).items() if k in WatermarkConfig.__dataclass_fields__}))
@@ -1359,6 +1364,15 @@ class MainUI(QWidget):
         index = combo.findData(value)
         if index >= 0:
             combo.setCurrentIndex(index)
+
+    @staticmethod
+    def normalizacao_config_antiga_zerada(app_version: str, norm: dict) -> bool:
+        if app_version == APP_VERSION:
+            return False
+        try:
+            return float(norm.get("target_lufs", -14.0)) == 0.0 and float(norm.get("true_peak", -1.0)) == 0.0
+        except (TypeError, ValueError):
+            return True
 
     # ---------- Intro ----------
 
