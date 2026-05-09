@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.56 - 2026-05-09
+
+- Movida a configuração de Títulos para dentro da aba Músicas.
+- Criada a subaba Faixas para a lista de músicas e títulos por faixa.
+
 ## 8.0.55 - 2026-05-09
 
 - Adicionado toggle para ativar ou desativar a sombra dos textos do vídeo.
