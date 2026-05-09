@@ -1,0 +1,21 @@
+__pycache__/
+*.py[cod]
+
+.venv/
+venv/
+env/
+
+_temp_audio_processado/
+video_creator_config.json
+erro_ffmpeg_log.txt
+
+output/
+outputs/
+rendered/
+renders/
+
+# Local FFmpeg runtime copied beside the app. Keep it local because the
+# Windows binaries are large and may exceed hosted Git repository limits.
+ffmpeg/bin/ffmpeg.exe
+ffmpeg/bin/ffprobe.exe
+
