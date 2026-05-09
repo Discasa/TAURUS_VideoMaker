@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.39 - 2026-05-09
+
+- Ajustada a cor de fundo do trilho dos sliders para combinar com os painéis da interface.
+
 ## 8.0.38 - 2026-05-09
 
 - Corrigido artefato visual no knob dos sliders.

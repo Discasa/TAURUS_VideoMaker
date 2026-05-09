@@ -235,8 +235,8 @@ QSlider {
     max-height: 24px;
 }
 QSlider::groove:horizontal {
-    background: #0D1420;
-    border: 1px solid #31415C;
+    background: #131D2B;
+    border: 1px solid #26354D;
     height: 6px;
     border-radius: 3px;
 }
