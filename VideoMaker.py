@@ -15,6 +15,7 @@ from pathlib import Path
 
 from engine import (
     APP_VERSION,
+    EXTENSOES_AUDIO,
     EXTENSOES_IMAGEM,
     EXTENSOES_VIDEO,
     FFMPEG,
@@ -34,6 +35,8 @@ from engine import (
     intro_config_from_dict,
     intro_config_to_dict,
     limpar_hex,
+    limpar_titulo_musica,
+    natural_key,
     popular_combo_posicoes,
     salvar_json_config,
 )
@@ -717,10 +720,11 @@ class PreviewCanvas(QWidget):
 
     def _draw_title(self, painter: QPainter, frame: QRectF):
         cfg = self.config.fonte_texto
+        sample_title = next((title for title in self.config.track_titles.values() if str(title).strip()), "Nome da faixa")
         self._draw_text(
             painter,
             frame,
-            "Nome da faixa",
+            sample_title,
             cfg.font_family,
             cfg.font_size,
             cfg.color,
@@ -825,6 +829,8 @@ class MainUI(QWidget):
         self.apply_intro_config(IntroTextConfig())
         self.load_config()
         self.connect_auto_signals()
+        self.music_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
+        self.bg_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         remove_spin_buttons(self)
         padronizar_altura_controles(self)
         self.update_preview()
@@ -964,6 +970,19 @@ class MainUI(QWidget):
     def build_titles_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+
+        self.title_tabs = QTabWidget()
+        self.title_tabs.addTab(self.build_title_font_tab(), "Fonte")
+        self.title_tabs.addTab(self.build_title_tracks_tab(), "Músicas")
+        self.title_tabs.tabBar().setUsesScrollButtons(False)
+        layout.addWidget(self.title_tabs)
+        return tab
+
+    def build_title_font_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
         form = QGridLayout()
@@ -991,6 +1010,44 @@ class MainUI(QWidget):
         add_row(form, 7, "Opacidade", self.font_titles_opc)
         add_row(form, 8, "Sombra", self.font_titles_shadow)
         layout.addWidget(centered_layout(form))
+        layout.addStretch(1)
+        return tab
+
+    def build_title_tracks_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
+
+        self.track_titles_table = QTableWidget(0, 2)
+        self.track_titles_table.setHorizontalHeaderLabels(["Arquivo", "Título no vídeo"])
+        self.track_titles_table.setShowGrid(True)
+        self.track_titles_table.setCornerButtonEnabled(False)
+        self.track_titles_table.setFrameShape(QFrame.NoFrame)
+        self.track_titles_table.verticalHeader().setVisible(False)
+        self.track_titles_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
+        self.track_titles_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.track_titles_table.setFixedHeight(285)
+        layout.addWidget(self.track_titles_table)
+
+        row = QHBoxLayout()
+        row.addStretch(1)
+        self.btn_refresh_titles = ActionButton("Carregar músicas", "ghost", 140)
+        self.btn_auto_titles = ActionButton("Gerar títulos", "normal", 130)
+        self.btn_clear_titles = ActionButton("Limpar títulos", "ghost", 130)
+        self.btn_refresh_titles.clicked.connect(self.refresh_track_titles_table)
+        self.btn_auto_titles.clicked.connect(self.auto_fill_track_titles)
+        self.btn_clear_titles.clicked.connect(self.clear_track_titles)
+        row.addWidget(self.btn_refresh_titles)
+        row.addWidget(self.btn_auto_titles)
+        row.addWidget(self.btn_clear_titles)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        note = QLabel("Edite a coluna de título quando quiser substituir o nome automático de uma música.")
+        note.setObjectName("Subtle")
+        note.setAlignment(Qt.AlignCenter)
+        layout.addWidget(note)
         layout.addStretch(1)
         return tab
 
@@ -1285,6 +1342,38 @@ class MainUI(QWidget):
                 phrases.append(IntroFraseConfig(start, duration, text))
         return phrases
 
+    def music_files_from_folder(self) -> list[Path]:
+        folder = self.music_picker.path()
+        if not folder or not folder.exists():
+            return []
+        files = [
+            path for path in folder.iterdir()
+            if path.is_file()
+            and path.suffix.lower() in EXTENSOES_AUDIO
+            and not path.name.startswith("_temp_")
+        ]
+        bg_path = self.bg_picker.path()
+        if bg_path:
+            try:
+                bg_resolved = bg_path.resolve()
+                files = [path for path in files if path.resolve() != bg_resolved]
+            except OSError:
+                pass
+        return sorted(files, key=natural_key)
+
+    def get_track_titles(self) -> dict[str, str]:
+        titles: dict[str, str] = {}
+        if not hasattr(self, "track_titles_table"):
+            return titles
+        for row in range(self.track_titles_table.rowCount()):
+            file_item = self.track_titles_table.item(row, 0)
+            title_item = self.track_titles_table.item(row, 1)
+            file_name = (file_item.text() if file_item else "").strip()
+            title = (title_item.text() if title_item else "").strip()
+            if file_name and title:
+                titles[file_name] = title
+        return titles
+
     def get_config_obj(self, validar: bool = True) -> RenderConfig:
         video = self.video_picker.path()
         music = self.music_picker.path()
@@ -1364,6 +1453,7 @@ class MainUI(QWidget):
                 true_peak=self.set_peak.value(),
             ),
             fonte_texto=title_font,
+            track_titles=self.get_track_titles(),
             watermark=watermark,
             intro=intro,
         )
@@ -1389,6 +1479,7 @@ class MainUI(QWidget):
                 },
                 "normalizacao": asdict(cfg.normalizacao),
                 "fonte_texto": asdict(cfg.fonte_texto),
+                "titulos_musicas": cfg.track_titles,
                 "watermark": asdict(cfg.watermark),
                 "intro": intro_config_to_dict(cfg.intro),
             })
@@ -1424,6 +1515,7 @@ class MainUI(QWidget):
                 self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
 
             self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
+            self.refresh_track_titles_table(data.get("titulos_musicas", {}))
             self.apply_watermark_config(WatermarkConfig(**{k: v for k, v in data.get("watermark", {}).items() if k in WatermarkConfig.__dataclass_fields__}))
             self.apply_intro_config(intro_config_from_dict(data.get("intro", {})))
         self._config_loading = False
@@ -1439,6 +1531,45 @@ class MainUI(QWidget):
         self.font_titles_typ.setValue(float(cfg.typing_duration))
         self.font_titles_era.setValue(float(cfg.erasing_duration))
         self.font_titles_shadow.setValue(float(cfg.shadow_opacity))
+
+    def refresh_track_titles_table(self, existing_titles: dict | None = None):
+        current_titles = self.get_track_titles()
+        if isinstance(existing_titles, dict):
+            current_titles.update({str(k): str(v) for k, v in existing_titles.items()})
+        files = self.music_files_from_folder()
+        self.track_titles_table.blockSignals(True)
+        self.track_titles_table.setRowCount(0)
+        for file in files:
+            row = self.track_titles_table.rowCount()
+            self.track_titles_table.insertRow(row)
+            file_item = QTableWidgetItem(file.name)
+            file_item.setFlags(file_item.flags() & ~Qt.ItemIsEditable)
+            title_item = QTableWidgetItem(current_titles.get(file.name, limpar_titulo_musica(file)))
+            self.track_titles_table.setItem(row, 0, file_item)
+            self.track_titles_table.setItem(row, 1, title_item)
+        self.track_titles_table.blockSignals(False)
+        self.trigger_autosave()
+
+    def auto_fill_track_titles(self):
+        files = self.music_files_from_folder()
+        file_map = {file.name: limpar_titulo_musica(file) for file in files}
+        self.track_titles_table.blockSignals(True)
+        for row in range(self.track_titles_table.rowCount()):
+            file_item = self.track_titles_table.item(row, 0)
+            title_item = self.track_titles_table.item(row, 1)
+            if file_item and title_item:
+                title_item.setText(file_map.get(file_item.text(), title_item.text()))
+        self.track_titles_table.blockSignals(False)
+        self.trigger_autosave()
+
+    def clear_track_titles(self):
+        self.track_titles_table.blockSignals(True)
+        for row in range(self.track_titles_table.rowCount()):
+            item = self.track_titles_table.item(row, 1)
+            if item:
+                item.setText("")
+        self.track_titles_table.blockSignals(False)
+        self.trigger_autosave()
 
     def apply_watermark_config(self, cfg: WatermarkConfig):
         self.wm_enabled.setChecked(bool(cfg.enabled))
@@ -1556,6 +1687,7 @@ class MainUI(QWidget):
             elif isinstance(child, QCheckBox):
                 child.stateChanged.connect(self.trigger_autosave)
         self.intro_table.itemChanged.connect(self.trigger_autosave)
+        self.track_titles_table.itemChanged.connect(self.trigger_autosave)
 
     def trigger_autosave(self, *args):
         if self._config_loading:

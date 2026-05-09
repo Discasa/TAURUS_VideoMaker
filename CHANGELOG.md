@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.32 - 2026-05-09
+
+- A aba Títulos agora tem subabas para separar configurações de fonte e títulos das músicas.
+- Adicionada tabela de músicas para gerar títulos automáticos e editar manualmente o título exibido de cada faixa.
+- O engine passa a respeitar títulos personalizados por arquivo, mantendo o título automático quando não houver edição manual.
+
 ## 8.0.31 - 2026-05-09
 
 - Removido código legado de legendas ASS/subtitles que não era mais usado pelo render atual.

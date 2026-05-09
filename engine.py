@@ -31,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.31"
+APP_VERSION = "8.0.32"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -184,6 +184,7 @@ class RenderConfig:
     background_volume: float = 0.30
     normalizacao: NormalizacaoConfig = field(default_factory=NormalizacaoConfig)
     fonte_texto: FonteTextoConfig = field(default_factory=FonteTextoConfig)
+    track_titles: dict[str, str] = field(default_factory=dict)
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
     intro: IntroTextConfig = field(default_factory=IntroTextConfig)
 
@@ -728,10 +729,11 @@ class RenderEngine:
                 continue
             inicio = cursor
             fim = cursor + duracao
+            titulo_manual = str(self.config.track_titles.get(arquivo.name, "")).strip()
             tracks.append(
                 TrackInfo(
                     arquivo=arquivo,
-                    titulo=limpar_titulo_musica(arquivo),
+                    titulo=titulo_manual or limpar_titulo_musica(arquivo),
                     inicio=inicio,
                     fim=fim,
                     duracao=duracao,
