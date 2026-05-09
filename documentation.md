@@ -6,7 +6,7 @@ O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, 
 
 ## Versão do Script
 
-A versão atual do script é `8.0.7`.
+A versão atual do script é `8.0.8`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 

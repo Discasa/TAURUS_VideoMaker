@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.7.
+Versão 8.0.8.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.7"
+APP_VERSION = "8.0.8"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -3813,6 +3813,28 @@ class MainWindow(QWidget):
         self.fade_out_seconds.setValue(3.0)
         self.fade_out_seconds.setSuffix(" s")
 
+        def criar_subcard_fade(titulo: str, toggle: ToggleSwitch, duracao: QDoubleSpinBox) -> QFrame:
+            subcard = QFrame()
+            subcard.setObjectName("SubCard")
+            layout = QGridLayout(subcard)
+            layout.setContentsMargins(10, 8, 10, 8)
+            layout.setHorizontalSpacing(8)
+            layout.setVerticalSpacing(6)
+
+            label = QLabel(titulo)
+            label.setObjectName("SubCardTitle")
+            duracao_label = compact_label("Duração")
+
+            layout.addWidget(label, 0, 0, 1, 2)
+            layout.addWidget(toggle, 1, 0, 1, 2)
+            layout.addWidget(duracao_label, 2, 0)
+            layout.addWidget(duracao, 2, 1)
+            layout.setColumnStretch(0, 1)
+            return subcard
+
+        fade_in_subcard = criar_subcard_fade("Fade in", self.toggle_fade_in, self.fade_in_seconds)
+        fade_out_subcard = criar_subcard_fade("Fade out", self.toggle_fade_out, self.fade_out_seconds)
+
         self.target_lufs = make_compact_spin(QDoubleSpinBox())
         self.target_lufs.setRange(-40.0, 0.0)
         self.target_lufs.setSingleStep(0.5)
@@ -3832,10 +3854,8 @@ class MainWindow(QWidget):
         grid_render.addWidget(self.toggle_gpu, 0, 0, 1, 2)
         grid_render.addWidget(self.toggle_norm, 0, 2, 1, 2)
 
-        grid_render.addWidget(self.toggle_fade_in, 1, 0)
-        grid_render.addWidget(self.fade_in_seconds, 1, 1)
-        grid_render.addWidget(self.toggle_fade_out, 1, 2)
-        grid_render.addWidget(self.fade_out_seconds, 1, 3)
+        grid_render.addWidget(fade_in_subcard, 1, 0, 1, 2)
+        grid_render.addWidget(fade_out_subcard, 1, 2, 1, 2)
 
         grid_render.addWidget(compact_label("Target LUFS"), 2, 0)
         grid_render.addWidget(self.target_lufs, 2, 1)

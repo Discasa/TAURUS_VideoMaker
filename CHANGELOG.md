@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.8 - 2026-05-09
+
+- Criados subcards no passo 2 para agrupar as opções de fade in e fade out.
+
 ## 8.0.7 - 2026-05-09
 
 - Reduzida a margem superior dos cards para aproximar os títulos do topo.
