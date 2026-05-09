@@ -897,7 +897,6 @@ class MainUI(QWidget):
             ("Adicionar", lambda: self.add_intro_row("0.0", "4.0", "Nova frase...")),
             ("Remover", self.remove_intro_rows),
             ("Limpar", lambda: self.intro_table.setRowCount(0)),
-            ("Exemplo", self.sample_intro_rows),
         ):
             btn = ActionButton(text, "ghost", 84)
             btn.clicked.connect(slot)
@@ -1367,9 +1366,6 @@ class MainUI(QWidget):
         for row in rows:
             self.intro_table.removeRow(row)
         self.trigger_autosave()
-
-    def sample_intro_rows(self):
-        self.set_intro_rows(IntroTextConfig().phrases)
 
     def save_intro_preset(self):
         path, _ = QFileDialog.getSaveFileName(self, "Salvar preset da intro", str(SCRIPT_DIR), "Preset JSON (*.json)")

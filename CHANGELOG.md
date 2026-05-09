@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.20 - 2026-05-09
+
+- Removido o botão `Exemplo` da aba de frases da intro e a lógica associada.
+
 ## 8.0.19 - 2026-05-09
 
 - Removida a numeração da coluna esquerda para adequar a UI ao modelo de editor, não mais a passos sequenciais.
