@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.49 - 2026-05-09
+
+- Simplificada a descrição da opção de renderização para uma linha.
+
 ## 8.0.48 - 2026-05-09
 
 - Reduzida a altura visual da barra de progresso.
