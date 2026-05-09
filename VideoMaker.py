@@ -525,6 +525,8 @@ class DecimalSlider(QWidget):
         layout.setSpacing(8)
         self.slider = QSlider(Qt.Horizontal)
         self.slider.setRange(self._to_slider(minimum), self._to_slider(maximum))
+        self.slider.setSingleStep(1)
+        self.slider.setPageStep(1)
         self.slider.setFixedHeight(CONTROL_HEIGHT)
         self.label = QLabel()
         self.label.setObjectName("Subtle")
@@ -733,7 +735,8 @@ class PreviewCanvas(QWidget):
 
     def _draw_text(self, painter: QPainter, frame: QRectF, text: str, font_family: str, font_size: int, color: str,
                    opacity: float, position: str, margin_x: int, margin_y: int, weight: int = 700,
-                   shadow_opacity: float = 0.55, box: bool = False, box_opacity: float = 0.35):
+                   shadow_opacity: float = 0.55, shadow_color: str = "#000000",
+                   box: bool = False, box_opacity: float = 0.35):
         if not text:
             return
         scale = max(0.35, frame.width() / 1280)
@@ -750,7 +753,7 @@ class PreviewCanvas(QWidget):
             painter.setBrush(QColor(0, 0, 0, int(255 * max(0, min(1, box_opacity)))))
             painter.drawRoundedRect(rect.adjusted(-8, -5, 8, 5), 7, 7)
 
-        shadow = QColor("#000000")
+        shadow = QColor(limpar_hex(shadow_color, "#000000"))
         shadow.setAlphaF(max(0, min(1, shadow_opacity)))
         painter.setPen(shadow)
         painter.drawText(rect.adjusted(2, 2, 2, 2), Qt.AlignCenter, text)
@@ -776,6 +779,7 @@ class PreviewCanvas(QWidget):
             cfg.margin_bottom,
             700,
             cfg.shadow_opacity,
+            cfg.shadow_color,
         )
 
     def _draw_intro(self, painter: QPainter, frame: QRectF):
@@ -796,6 +800,7 @@ class PreviewCanvas(QWidget):
             intro.margin_y,
             intro.font_weight,
             intro.shadow_opacity,
+            intro.shadow_color,
             intro.background_box,
             intro.box_opacity,
         )
@@ -829,6 +834,7 @@ class PreviewCanvas(QWidget):
                 wm.margin_y,
                 700,
                 wm.shadow_opacity,
+                wm.shadow_color,
             )
 
 
@@ -1038,8 +1044,9 @@ class MainUI(QWidget):
         self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 800); self.font_titles_my.setValue(42)
         self.font_titles_typ = QDoubleSpinBox(); self.font_titles_typ.setRange(0.1, 20); self.font_titles_typ.setValue(2.2)
         self.font_titles_era = QDoubleSpinBox(); self.font_titles_era.setRange(0.1, 20); self.font_titles_era.setValue(1.6)
-        self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.01, 0.93)
-        self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.01, 0.60)
+        self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.05, 0.95)
+        self.font_titles_shadow_color = ColorEdit("#000000")
+        self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
 
         color_row = self.color_row(self.font_titles_color)
         add_row(form, 0, "Fonte", self.font_titles)
@@ -1050,7 +1057,8 @@ class MainUI(QWidget):
         add_row(form, 5, "Digita por", self.font_titles_typ)
         add_row(form, 6, "Apaga por", self.font_titles_era)
         add_row(form, 7, "Opacidade", self.font_titles_opc)
-        add_row(form, 8, "Sombra", self.font_titles_shadow)
+        add_row(form, 8, "Cor sombra", self.color_row(self.font_titles_shadow_color))
+        add_row(form, 9, "Sombra", self.font_titles_shadow)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1165,14 +1173,15 @@ class MainUI(QWidget):
         self.intro_font_size = QSpinBox(); self.intro_font_size.setRange(8, 180); self.intro_font_size.setValue(48)
         self.intro_font_weight = QSpinBox(); self.intro_font_weight.setRange(100, 900); self.intro_font_weight.setSingleStep(50); self.intro_font_weight.setValue(700)
         self.intro_color = ColorEdit("#FFFFFF")
-        self.intro_opacity = DecimalSlider(0.05, 1.0, 0.01, 0.92)
+        self.intro_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.90)
         self.intro_pos = combo_posicao("inferior_esquerda")
         self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
         self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
-        self.intro_shadow_size = DecimalSlider(0.0, 10.0, 0.1, 1.4, decimals=1)
-        self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.01, 0.65)
+        self.intro_shadow_color = ColorEdit("#000000")
+        self.intro_shadow_size = DecimalSlider(0.0, 10.0, 0.5, 1.5, decimals=1)
+        self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.65)
         self.intro_background_box = ToggleSwitch("Fundo transparente atrás do texto")
-        self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.01, 0.35)
+        self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
 
         add_row(form, 0, "Fonte", self.intro_font)
         add_row(form, 1, "Tamanho", self.intro_font_size)
@@ -1181,10 +1190,11 @@ class MainUI(QWidget):
         add_row(form, 4, "Opacidade", self.intro_opacity)
         add_row(form, 5, "Posição", self.intro_pos)
         add_row(form, 6, "Margens", margins_widget(self.intro_mx, self.intro_my))
-        add_row(form, 7, "Sombra", self.intro_shadow_size)
-        add_row(form, 8, "Opac. sombra", self.intro_shadow_opacity)
-        add_wide(form, 9, self.intro_background_box)
-        add_row(form, 10, "Opac. fundo", self.intro_box_opacity)
+        add_row(form, 7, "Cor sombra", self.color_row(self.intro_shadow_color))
+        add_row(form, 8, "Sombra", self.intro_shadow_size)
+        add_row(form, 9, "Opac. sombra", self.intro_shadow_opacity)
+        add_wide(form, 10, self.intro_background_box)
+        add_row(form, 11, "Opac. fundo", self.intro_box_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1233,11 +1243,12 @@ class MainUI(QWidget):
         self.wm_font = combo_fontes("Segoe UI Symbol")
         self.wm_font_size = QSpinBox(); self.wm_font_size.setRange(8, 180); self.wm_font_size.setValue(44)
         self.wm_color = ColorEdit("#FFFFFF")
-        self.wm_opacity = DecimalSlider(0.05, 1.0, 0.01, 0.70)
+        self.wm_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.70)
         self.wm_pos = combo_posicao("inferior_direita")
         self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
         self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
-        self.wm_shadow = DecimalSlider(0.0, 1.0, 0.01, 0.60)
+        self.wm_shadow_color = ColorEdit("#000000")
+        self.wm_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
         add_wide(form, 0, self.wm_enabled)
         add_row(form, 1, "Tipo", self.wm_mode)
         self.wm_text_label = add_row(form, 2, "Texto", self.wm_text)
@@ -1250,7 +1261,8 @@ class MainUI(QWidget):
         add_row(form, 8, "Opacidade", self.wm_opacity)
         add_row(form, 9, "Posição", self.wm_pos)
         add_row(form, 10, "Margens", margins_widget(self.wm_mx, self.wm_my))
-        add_row(form, 11, "Sombra", self.wm_shadow)
+        add_row(form, 11, "Cor sombra", self.color_row(self.wm_shadow_color))
+        add_row(form, 12, "Sombra", self.wm_shadow)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
@@ -1268,9 +1280,9 @@ class MainUI(QWidget):
         self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
         self.bg_vol_slider = QSlider(Qt.Horizontal)
         self.bg_vol_slider.setRange(0, 20)
-        self.bg_vol_slider.setValue(3)
+        self.bg_vol_slider.setValue(6)
         self.bg_vol_label = QLabel("30%")
-        self.bg_vol_slider.valueChanged.connect(lambda value: self.bg_vol_label.setText(f"{value * 10}%"))
+        self.bg_vol_slider.valueChanged.connect(lambda value: self.bg_vol_label.setText(f"{value * 5}%"))
         volume_row = QHBoxLayout()
         volume_row.addWidget(QLabel("Volume"))
         volume_row.addWidget(self.bg_vol_slider, 1)
@@ -1428,6 +1440,7 @@ class MainUI(QWidget):
             margin_bottom=self.font_titles_my.value(),
             typing_duration=self.font_titles_typ.value(),
             erasing_duration=self.font_titles_era.value(),
+            shadow_color=limpar_hex(self.font_titles_shadow_color.text(), "#000000"),
             shadow_opacity=self.font_titles_shadow.value(),
         )
         watermark = WatermarkConfig(
@@ -1443,6 +1456,7 @@ class MainUI(QWidget):
             position=self.wm_pos.currentData(),
             margin_x=self.wm_mx.value(),
             margin_y=self.wm_my.value(),
+            shadow_color=limpar_hex(self.wm_shadow_color.text(), "#000000"),
             shadow_opacity=self.wm_shadow.value(),
         )
         intro = IntroTextConfig(
@@ -1466,6 +1480,7 @@ class MainUI(QWidget):
             position=self.intro_pos.currentData(),
             margin_x=self.intro_mx.value(),
             margin_y=self.intro_my.value(),
+            shadow_color=limpar_hex(self.intro_shadow_color.text(), "#000000"),
             shadow_opacity=self.intro_shadow_opacity.value(),
             shadow_size=self.intro_shadow_size.value(),
             background_box=self.intro_background_box.isChecked(),
@@ -1481,7 +1496,7 @@ class MainUI(QWidget):
             use_fade_out=self.set_fadeout.isChecked(),
             fade_in_seconds=self.set_fadein_s.value(),
             fade_out_seconds=self.set_fadeout_s.value(),
-            background_volume=self.bg_vol_slider.value() / 10.0,
+            background_volume=self.bg_vol_slider.value() / 20.0,
             normalizacao=NormalizacaoConfig(
                 enabled=self.set_norm.isChecked(),
                 target_lufs=self.set_lufs.value(),
@@ -1537,7 +1552,7 @@ class MainUI(QWidget):
             self.set_fadeout.setChecked(bool(render.get("use_fade_out", True)))
             self.set_fadein_s.setValue(float(render.get("fade_in_seconds", 3.0)))
             self.set_fadeout_s.setValue(float(render.get("fade_out_seconds", 3.0)))
-            self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 10))
+            self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 20))
 
             norm = data.get("normalizacao", {})
             if self.normalizacao_config_antiga_zerada(str(data.get("app_version", "")), norm):
@@ -1565,6 +1580,7 @@ class MainUI(QWidget):
         self.font_titles_my.setValue(int(cfg.margin_bottom))
         self.font_titles_typ.setValue(float(cfg.typing_duration))
         self.font_titles_era.setValue(float(cfg.erasing_duration))
+        self.font_titles_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.font_titles_shadow.setValue(float(cfg.shadow_opacity))
 
     def refresh_track_titles_table(self, existing_titles: dict | None = None):
@@ -1619,6 +1635,7 @@ class MainUI(QWidget):
         self.set_combo_data(self.wm_pos, cfg.position)
         self.wm_mx.setValue(int(cfg.margin_x))
         self.wm_my.setValue(int(cfg.margin_y))
+        self.wm_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.wm_shadow.setValue(float(cfg.shadow_opacity))
         self.update_watermark_mode(self.wm_mode.currentText())
 
@@ -1637,6 +1654,7 @@ class MainUI(QWidget):
         self.set_combo_data(self.intro_pos, cfg.position)
         self.intro_mx.setValue(int(cfg.margin_x))
         self.intro_my.setValue(int(cfg.margin_y))
+        self.intro_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.intro_shadow_size.setValue(float(cfg.shadow_size))
         self.intro_shadow_opacity.setValue(float(cfg.shadow_opacity))
         self.intro_background_box.setChecked(bool(cfg.background_box))

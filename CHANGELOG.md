@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.35 - 2026-05-09
+
+- Adicionado seletor de cor para a sombra dos títulos, intro e marca d'água.
+- Ajustados os sliders da interface para trabalhar em incrementos de 5 pontos.
+- O render agora aplica a cor de sombra escolhida nos textos gerados pelo FFmpeg.
+
 ## 8.0.34 - 2026-05-09
 
 - Trocados os controles de opacidade por sliders em toda a interface.

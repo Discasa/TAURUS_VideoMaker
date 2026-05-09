@@ -31,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.34"
+APP_VERSION = "8.0.35"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -99,6 +99,7 @@ class FonteTextoConfig:
     margin_bottom: int = 42
     typing_duration: float = 2.2
     erasing_duration: float = 1.6
+    shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
 
 
@@ -119,6 +120,7 @@ class WatermarkConfig:
     position: str = "inferior_direita"
     margin_x: int = 45
     margin_y: int = 42
+    shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
 
 
@@ -156,6 +158,7 @@ class IntroTextConfig:
     position: str = "inferior_esquerda"
     margin_x: int = 90
     margin_y: int = 120
+    shadow_color: str = "#000000"
     shadow_opacity: float = 0.65
     shadow_size: float = 1.4
     background_box: bool = False
@@ -1005,7 +1008,7 @@ class RenderEngine:
             f"fontsize={cfg.font_size}",
             f"x={x}",
             f"y={y}",
-            f"shadowcolor=black@{cfg.shadow_opacity}",
+            f"shadowcolor={cor_drawtext(cfg.shadow_color, cfg.shadow_opacity)}",
             "shadowx=2",
             "shadowy=2",
         ]
@@ -1089,6 +1092,7 @@ class RenderEngine:
         color = getattr(cfg, "color", "#FFFFFF")
         opacity = float(getattr(cfg, "opacity", 0.93))
         shadow_opacity = float(getattr(cfg, "shadow_opacity", 0.60))
+        shadow_color = getattr(cfg, "shadow_color", "#000000")
         font_family = getattr(cfg, "font_family", "Georgia")
         bold = int(getattr(cfg, "font_weight", 400)) >= 600 if intro else False
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(font_family, bold))
@@ -1113,7 +1117,7 @@ class RenderEngine:
             f"fontsize={font_size}",
             f"x={x}",
             f"y={y}",
-            f"shadowcolor=black@{shadow_opacity}",
+            f"shadowcolor={cor_drawtext(shadow_color, shadow_opacity)}",
             "shadowx=2",
             "shadowy=2",
             f"enable='between(t,{inicio:.3f},{fim:.3f})'",
