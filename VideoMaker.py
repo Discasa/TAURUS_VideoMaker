@@ -488,12 +488,12 @@ class PreviewCanvas(QWidget):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(self.rect(), QColor("#07111F"))
+        painter.fillRect(self.rect(), QColor("#131D2B"))
 
         frame = self._video_rect()
-        painter.setPen(QColor("#26354D"))
-        painter.setBrush(QColor("#0D1420"))
-        painter.drawRoundedRect(frame, 10, 10)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor("#000000"))
+        painter.drawRect(frame)
 
         if self.base_pixmap and not self.base_pixmap.isNull():
             scaled = self.base_pixmap.scaled(frame.size().toSize(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
@@ -516,9 +516,9 @@ class PreviewCanvas(QWidget):
             self._draw_intro(painter, frame)
             self._draw_watermark(painter, frame)
 
-        painter.setPen(QColor("#5EA0FF"))
+        painter.setPen(QColor("#26354D"))
         painter.setBrush(Qt.NoBrush)
-        painter.drawRoundedRect(frame, 10, 10)
+        painter.drawRect(frame)
 
     def _video_rect(self) -> QRectF:
         area = self.rect().adjusted(16, 16, -16, -16)
@@ -749,7 +749,7 @@ class MainUI(QWidget):
         preview_layout = QVBoxLayout(preview_shell)
         preview_layout.setContentsMargins(12, 10, 12, 12)
         header = QHBoxLayout()
-        title = QLabel("Preview em tempo real")
+        title = QLabel("Preview")
         title.setObjectName("ColumnTitle")
         self.preview_status = QLabel("Primeiro frame + sobreposições")
         self.preview_status.setObjectName("Subtle")

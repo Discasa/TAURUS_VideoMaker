@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.22 - 2026-05-09
+
+- Simplificado o título da área central para `Preview`.
+- Ajustado o preview de vídeo para usar fundo preto e bordas retas.
+- Igualada a cor da área interna do preview ao card da interface.
+
 ## 8.0.21 - 2026-05-09
 
 - Renomeado o aplicativo e a documentação para `TAURUS Video Maker`.
