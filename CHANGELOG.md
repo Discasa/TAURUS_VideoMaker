@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.12 - 2026-05-09
+
+- Renomeado o campo da intro para `Música começa após`, deixando claro que ele atrasa a entrada da música principal.
+- Adicionada indicação visual de seta azul nos seletores, incluindo o seletor de fontes.
+
 ## 8.0.11 - 2026-05-09
 
 - Ajustado o carregamento de fontes da interface para usar a lista nativa do Qt quando disponível.

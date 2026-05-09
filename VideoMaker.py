@@ -112,8 +112,23 @@ QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSp
     border: none;
 }
 QComboBox::drop-down {
-    border: none;
-    width: 20px;
+    border-left: 1px solid #383A3F;
+    width: 24px;
+    background: #202226;
+    border-top-right-radius: 4px;
+    border-bottom-right-radius: 4px;
+}
+QComboBox::down-arrow {
+    image: none;
+    width: 0px;
+    height: 0px;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #5EA0FF;
+    margin-right: 7px;
+}
+QComboBox::drop-down:hover {
+    background: #273040;
 }
 QListWidget#SidebarList {
     background: transparent;
@@ -535,11 +550,11 @@ class PageIntro(QWidget):
         self.mw.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação (opcional)")
         self.mw.intro_delay = QDoubleSpinBox(); self.mw.intro_delay.setRange(0, 120)
         self.mw.intro_delay.setSuffix(" s")
-        self.mw.intro_delay.setToolTip("Tempo de espera antes de iniciar a música principal. Use 0 para tocar imediatamente.")
+        self.mw.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar. Use 0 para tocar junto com a intro.")
 
         fl.addRow("Efeito:", self.mw.intro_eff)
         fl.addRow("Som (Teclado):", self.mw.intro_audio)
-        fl.addRow("Atrasar início da música:", self.mw.intro_delay)
+        fl.addRow("Música começa após:", self.mw.intro_delay)
         layout.addWidget(grp)
         remove_spinbox_buttons(self)
 
