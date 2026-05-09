@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.3 - 2026-05-09
+
+- Aumentada a altura dos cards dos passos 1 e 2 para acomodar melhor os controles lado a lado.
+- Movido o volume do som de fundo para o passo 1.
+- Substituído o controle numérico de volume do som de fundo por um slider percentual.
+- Adicionado botão para mostrar ou esconder o log.
+
 ## 8.0.2 - 2026-05-09
 
 - Reorganizado o layout principal para mostrar os passos 1 e 2 lado a lado.

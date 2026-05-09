@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.2.
+Versão 8.0.3.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.2"
+APP_VERSION = "8.0.3"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -2194,6 +2194,7 @@ try:
         QPushButton,
         QScrollArea,
         QSizePolicy,
+        QSlider,
         QSpinBox,
         QTextEdit,
         QTableWidget,
@@ -3498,6 +3499,32 @@ QProgressBar::chunk {
     background: #6C727A;
     border-radius: 8px;
 }
+QSlider::groove:horizontal {
+    background: #1B1C1E;
+    border: 1px solid #4A4D52;
+    border-radius: 5px;
+    height: 10px;
+}
+QSlider::handle:horizontal {
+    background: #C8CCD2;
+    border: 1px solid #F0F0F0;
+    border-radius: 8px;
+    width: 16px;
+    margin: -4px 0;
+}
+QSlider::sub-page:horizontal {
+    background: #6C727A;
+    border-radius: 5px;
+}
+QSlider:disabled::groove:horizontal,
+QSlider:disabled::sub-page:horizontal {
+    background: #2A2C30;
+    border-color: #3A3D42;
+}
+QSlider:disabled::handle:horizontal {
+    background: #666A70;
+    border-color: #777B82;
+}
 QScrollArea {
     border: none;
     background: transparent;
@@ -3649,13 +3676,36 @@ class MainWindow(QWidget):
         clear_out = PillButton("Usar pasta do script", "normal")
         clear_out.clicked.connect(lambda: self.output_picker.set_path(None))
 
-        grid_files.addWidget(self.video_picker, 0, 0)
-        grid_files.addWidget(self.music_folder_picker, 0, 1)
-        grid_files.addWidget(self.bg_audio_picker, 1, 0)
-        grid_files.addWidget(self.output_picker, 1, 1)
-        grid_files.addWidget(clear_bg, 2, 0, alignment=Qt.AlignLeft)
-        grid_files.addWidget(clear_out, 2, 1, alignment=Qt.AlignLeft)
+        self.bg_volume_title = QLabel("Volume do som de fundo")
+        self.bg_volume_title.setObjectName("FieldLabel")
+        self.bg_volume = QSlider(Qt.Horizontal)
+        self.bg_volume.setRange(0, 200)
+        self.bg_volume.setSingleStep(5)
+        self.bg_volume.setPageStep(10)
+        self.bg_volume.setValue(30)
+        self.bg_volume.setMinimumWidth(160)
+        self.bg_volume_value = QLabel("30%")
+        self.bg_volume_value.setObjectName("FieldLabel")
+        self.bg_volume_value.setMinimumWidth(44)
+        self.bg_volume_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+
+        volume_row = QHBoxLayout()
+        volume_row.setContentsMargins(0, 0, 0, 0)
+        volume_row.setSpacing(8)
+        volume_row.addWidget(self.bg_volume_title)
+        volume_row.addWidget(self.bg_volume, 1)
+        volume_row.addWidget(self.bg_volume_value)
+
+        grid_files.addWidget(self.video_picker, 0, 0, 1, 2)
+        grid_files.addWidget(self.music_folder_picker, 1, 0, 1, 2)
+        grid_files.addWidget(self.bg_audio_picker, 2, 0, 1, 2)
+        grid_files.addLayout(volume_row, 3, 0, 1, 2)
+        grid_files.addWidget(clear_bg, 4, 0, alignment=Qt.AlignLeft)
+        grid_files.addWidget(self.output_picker, 5, 0, 1, 2)
+        grid_files.addWidget(clear_out, 6, 0, alignment=Qt.AlignLeft)
+        grid_files.setColumnStretch(0, 1)
         card_arquivos.addLayout(grid_files)
+        card_arquivos.setMinimumHeight(285)
         card_arquivos.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         # Render e áudio
@@ -3721,12 +3771,6 @@ class MainWindow(QWidget):
         self.fade_out_seconds.setValue(3.0)
         self.fade_out_seconds.setSuffix(" s")
 
-        self.bg_volume = make_compact_spin(QDoubleSpinBox())
-        self.bg_volume.setRange(0.0, 2.0)
-        self.bg_volume.setSingleStep(0.05)
-        self.bg_volume.setDecimals(2)
-        self.bg_volume.setValue(0.30)
-
         self.target_lufs = make_compact_spin(QDoubleSpinBox())
         self.target_lufs.setRange(-40.0, 0.0)
         self.target_lufs.setSingleStep(0.5)
@@ -3751,15 +3795,13 @@ class MainWindow(QWidget):
         grid_render.addWidget(self.toggle_fade_out, 1, 2)
         grid_render.addWidget(self.fade_out_seconds, 1, 3)
 
-        grid_render.addWidget(compact_label("Volume fundo"), 2, 0)
-        grid_render.addWidget(self.bg_volume, 2, 1)
-        grid_render.addWidget(compact_label("Target LUFS"), 2, 2)
-        grid_render.addWidget(self.target_lufs, 2, 3)
+        grid_render.addWidget(compact_label("Target LUFS"), 2, 0)
+        grid_render.addWidget(self.target_lufs, 2, 1)
+        grid_render.addWidget(compact_label("True Peak"), 2, 2)
+        grid_render.addWidget(self.true_peak, 2, 3)
 
-        grid_render.addWidget(compact_label("True Peak"), 3, 0)
-        grid_render.addWidget(self.true_peak, 3, 1)
-        grid_render.addWidget(compact_label("LRA"), 3, 2)
-        grid_render.addWidget(self.lra, 3, 3)
+        grid_render.addWidget(compact_label("LRA"), 3, 0)
+        grid_render.addWidget(self.lra, 3, 1)
 
         grid_render.setColumnStretch(0, 1)
         grid_render.setColumnStretch(1, 0)
@@ -3771,6 +3813,7 @@ class MainWindow(QWidget):
         self._atualizar_estado_controles()
 
         card_render.addLayout(grid_render)
+        card_render.setMinimumHeight(285)
         card_render.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         steps_top_row = QHBoxLayout()
@@ -3850,6 +3893,7 @@ class MainWindow(QWidget):
         self.btn_pause = PillButton("Pausar", "normal")
         self.btn_cancel = PillButton("Cancelar", "danger")
         self.btn_clear = PillButton("Limpar log", "normal")
+        self.btn_toggle_log = PillButton("Esconder log", "normal")
         self.btn_save_config = PillButton("Salvar configs JSON", "normal")
         self.btn_open = PillButton("Abrir pasta de saída", "normal")
 
@@ -3860,6 +3904,7 @@ class MainWindow(QWidget):
         self.btn_pause.clicked.connect(self.alternar_pausa)
         self.btn_cancel.clicked.connect(self.cancelar)
         self.btn_clear.clicked.connect(self.log_texto.clear)
+        self.btn_toggle_log.clicked.connect(self.alternar_log)
         self.btn_save_config.clicked.connect(lambda: self.salvar_config(mostrar_alerta=True))
         self.btn_open.clicked.connect(self.abrir_pasta_saida)
 
@@ -3868,6 +3913,7 @@ class MainWindow(QWidget):
         row_buttons.addWidget(self.btn_cancel)
         row_buttons.addStretch(1)
         row_buttons.addWidget(self.btn_save_config)
+        row_buttons.addWidget(self.btn_toggle_log)
         row_buttons.addWidget(self.btn_clear)
         row_buttons.addWidget(self.btn_open)
         content_layout.addLayout(row_buttons)
@@ -3883,6 +3929,25 @@ class MainWindow(QWidget):
         self.timer = QTimer(self)
         self.timer.timeout.connect(self._atualizar_tempo)
 
+    def _valor_volume_fundo(self) -> float:
+        return self.bg_volume.value() / 100.0
+
+    def _definir_volume_fundo(self, valor: float):
+        try:
+            percentual = int(round(float(valor) * 100))
+        except (TypeError, ValueError):
+            percentual = 30
+        self.bg_volume.setValue(max(0, min(200, percentual)))
+        self._atualizar_label_volume_fundo()
+
+    def _atualizar_label_volume_fundo(self, *args):
+        self.bg_volume_value.setText(f"{self.bg_volume.value()}%")
+
+    def alternar_log(self):
+        mostrar = not self.log_texto.isVisible()
+        self.log_texto.setVisible(mostrar)
+        self.btn_toggle_log.setText("Esconder log" if mostrar else "Mostrar log")
+
     def _atualizar_estado_controles(self, *args):
         # Deixa a interface mais clara: quando uma função está desligada,
         # os parâmetros dela ficam cinza/desativados.
@@ -3893,7 +3958,9 @@ class MainWindow(QWidget):
         normalizacao_ativa = self.toggle_norm.isChecked()
         for widget in (self.target_lufs, self.true_peak, self.lra):
             widget.setEnabled(normalizacao_ativa)
-        self.bg_volume.setEnabled(bool(self.bg_audio_picker.path()))
+        fundo_ativo = bool(self.bg_audio_picker.path())
+        for widget in (self.bg_volume_title, self.bg_volume, self.bg_volume_value):
+            widget.setEnabled(fundo_ativo)
 
     def _setup_autosave(self):
         self.autosave_timer = QTimer(self)
@@ -3910,6 +3977,7 @@ class MainWindow(QWidget):
             picker.line.textChanged.connect(self._agendar_autosave)
 
         self.bg_audio_picker.line.textChanged.connect(self._atualizar_estado_controles)
+        self.bg_volume.valueChanged.connect(self._atualizar_label_volume_fundo)
 
         for toggle in (
             self.toggle_gpu,
@@ -3954,7 +4022,7 @@ class MainWindow(QWidget):
                 "use_fade_out": self.toggle_fade_out.isChecked(),
                 "fade_in_seconds": self.fade_in_seconds.value(),
                 "fade_out_seconds": self.fade_out_seconds.value(),
-                "background_volume": self.bg_volume.value(),
+                "background_volume": self._valor_volume_fundo(),
             },
             "normalizacao": asdict(self.normalizacao_config()),
             "fonte_texto": asdict(self.fonte_config),
@@ -3995,7 +4063,7 @@ class MainWindow(QWidget):
             self.toggle_fade_out.setChecked(bool(render.get("use_fade_out", self.toggle_fade_out.isChecked())))
             self.fade_in_seconds.setValue(float(render.get("fade_in_seconds", self.fade_in_seconds.value())))
             self.fade_out_seconds.setValue(float(render.get("fade_out_seconds", self.fade_out_seconds.value())))
-            self.bg_volume.setValue(float(render.get("background_volume", self.bg_volume.value())))
+            self._definir_volume_fundo(float(render.get("background_volume", self._valor_volume_fundo())))
 
             normalizacao = dataclass_from_dict(NormalizacaoConfig, dados.get("normalizacao"))
             self.toggle_norm.setChecked(normalizacao.enabled)
@@ -4043,7 +4111,7 @@ class MainWindow(QWidget):
             use_fade_out=self.toggle_fade_out.isChecked(),
             fade_in_seconds=self.fade_in_seconds.value(),
             fade_out_seconds=self.fade_out_seconds.value(),
-            background_volume=self.bg_volume.value(),
+            background_volume=self._valor_volume_fundo(),
             normalizacao=self.normalizacao_config(),
             fonte_texto=self.fonte_config,
             watermark=self.watermark_config,
