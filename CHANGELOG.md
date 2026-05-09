@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.40 - 2026-05-09
+
+- Corrigido o estilo do log aberto, que herdava altura máxima dos campos compactos.
+- Aumentada a área do log aberto para facilitar leitura durante renders.
+
 ## 8.0.39 - 2026-05-09
 
 - Ajustada a cor de fundo do trilho dos sliders para combinar com os painéis da interface.

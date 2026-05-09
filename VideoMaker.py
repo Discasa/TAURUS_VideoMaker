@@ -129,13 +129,20 @@ QLabel#ImagePreview {
 QLabel {
     background: transparent;
 }
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
     background: #0D1420;
     border: 1px solid #31415C;
     border-radius: 17px;
     min-height: 32px;
     max-height: 32px;
     padding: 0px 12px;
+    selection-background-color: #2F86FF;
+}
+QTextEdit {
+    background: #0D1420;
+    border: 1px solid #31415C;
+    border-radius: 14px;
+    padding: 10px 12px;
     selection-background-color: #2F86FF;
 }
 QLineEdit {
@@ -1022,7 +1029,7 @@ class MainUI(QWidget):
 
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
-        self.log_widget.setFixedHeight(220)
+        self.log_widget.setFixedHeight(300)
         self.log_widget.hide()
         transport_layout.addWidget(self.log_widget)
         layout.addWidget(transport)
