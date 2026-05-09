@@ -116,6 +116,12 @@ QLabel#ColumnTitle {
     font-size: 16px;
     font-weight: 800;
 }
+QLabel#ImagePreview {
+    background: #0D1420;
+    border: 1px solid #31415C;
+    border-radius: 12px;
+    color: #8FA4C4;
+}
 QLabel {
     background: transparent;
 }
@@ -333,6 +339,7 @@ def add_row(form: QGridLayout, row: int, label: str, widget: QWidget):
     lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
     form.addWidget(lbl, row, 0)
     form.addWidget(widget, row, 1)
+    return lbl
 
 
 def add_wide(form: QGridLayout, row: int, widget: QWidget):
@@ -1125,6 +1132,11 @@ class MainUI(QWidget):
         self.wm_enabled.setChecked(True)
         self.wm_mode = QComboBox(); self.wm_mode.addItems(["Texto", "Imagem"]); set_input_width(self.wm_mode)
         self.wm_text = QLineEdit("⚓")
+        self.wm_image_preview = QLabel("Nenhuma imagem selecionada")
+        self.wm_image_preview.setObjectName("ImagePreview")
+        self.wm_image_preview.setAlignment(Qt.AlignCenter)
+        self.wm_image_preview.setFixedHeight(86)
+        self.wm_image_preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.wm_img = PathPicker("file", "Imagens (*.png *.jpg *.jpeg *.webp);;Todos (*.*)", "Imagem da marca")
         self.wm_width = QSpinBox(); self.wm_width.setRange(16, 1000); self.wm_width.setValue(180)
         self.wm_font = combo_fontes("Segoe UI Symbol")
@@ -1137,7 +1149,8 @@ class MainUI(QWidget):
         self.wm_shadow = QDoubleSpinBox(); self.wm_shadow.setRange(0, 1); self.wm_shadow.setSingleStep(0.05); self.wm_shadow.setValue(0.60)
         add_wide(form, 0, self.wm_enabled)
         add_row(form, 1, "Tipo", self.wm_mode)
-        add_row(form, 2, "Texto", self.wm_text)
+        self.wm_text_label = add_row(form, 2, "Texto", self.wm_text)
+        self.wm_preview_label = add_row(form, 2, "Preview", self.wm_image_preview)
         add_row(form, 3, "Imagem", self.wm_img)
         add_row(form, 4, "Largura img.", self.wm_width)
         add_row(form, 5, "Fonte", self.wm_font)
@@ -1150,6 +1163,7 @@ class MainUI(QWidget):
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
+        self.wm_img.line.textChanged.connect(self.update_watermark_image_preview)
         self.update_watermark_mode(self.wm_mode.currentText())
         return tab
 
@@ -1557,13 +1571,35 @@ class MainUI(QWidget):
 
     def update_watermark_mode(self, text: str):
         image_mode = text == "Imagem"
-        self.wm_text.setEnabled(not image_mode)
+        self.wm_text_label.setVisible(not image_mode)
+        self.wm_text.setVisible(not image_mode)
+        self.wm_preview_label.setVisible(image_mode)
+        self.wm_image_preview.setVisible(image_mode)
         self.wm_font.setEnabled(not image_mode)
         self.wm_font_size.setEnabled(not image_mode)
         self.wm_color.setEnabled(not image_mode)
         self.wm_img.setEnabled(image_mode)
         self.wm_width.setEnabled(image_mode)
+        self.update_watermark_image_preview()
         self.trigger_autosave()
+
+    def update_watermark_image_preview(self):
+        if not hasattr(self, "wm_image_preview"):
+            return
+        path = self.wm_img.path()
+        if not path or not path.exists():
+            self.wm_image_preview.setPixmap(QPixmap())
+            self.wm_image_preview.setText("Nenhuma imagem selecionada")
+            return
+        pixmap = QPixmap(str(path))
+        if pixmap.isNull():
+            self.wm_image_preview.setPixmap(QPixmap())
+            self.wm_image_preview.setText("Imagem inválida")
+            return
+        self.wm_image_preview.setText("")
+        size = self.wm_image_preview.size()
+        target = QSize(max(1, size.width() - 20), max(1, size.height() - 20))
+        self.wm_image_preview.setPixmap(pixmap.scaled(target, Qt.KeepAspectRatio, Qt.SmoothTransformation))
 
     def log_msg(self, text: str):
         self.log_widget.moveCursor(QTextCursor.End)

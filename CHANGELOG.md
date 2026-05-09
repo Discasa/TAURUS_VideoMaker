@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.30 - 2026-05-09
+
+- Substituído o campo de texto por um preview da imagem quando a marca d'água está no modo imagem.
+- O preview da marca d'água atualiza automaticamente ao escolher ou trocar a imagem.
+
 ## 8.0.29 - 2026-05-09
 
 - Corrigidos campos e seletores que ainda apareciam com cantos quadrados na aba Marca.
