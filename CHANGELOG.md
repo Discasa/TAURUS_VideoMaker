@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.47 - 2026-05-09
+
+- Alinhado o controle de volume do preview com a borda real do vídeo.
+
 ## 8.0.46 - 2026-05-09
 
 - Corrigido o fundo da barra de volume do preview para combinar com o painel.
