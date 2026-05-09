@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.11 - 2026-05-09
+
+- Ajustado o carregamento de fontes da interface para usar a lista nativa do Qt quando disponível.
+- Mantida a varredura manual de fontes apenas como fallback, evitando avisos de DirectWrite com arquivos de fonte não suportados.
+
 ## 8.0.10 - 2026-05-09
 
 - Renomeado `LoFi_VideoMaker.py` para `engine.py`.

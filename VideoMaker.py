@@ -332,6 +332,10 @@ def registrar_fontes_do_sistema():
     if _FONTES_DO_SISTEMA_REGISTRADAS:
         return
 
+    if QFontDatabase.families():
+        _FONTES_DO_SISTEMA_REGISTRADAS = True
+        return
+
     pastas = []
     if os.name == "nt":
         pastas.append(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts")
@@ -342,13 +346,16 @@ def registrar_fontes_do_sistema():
     for pasta in pastas:
         if not pasta.exists():
             continue
-        for padrao in ("*.ttf", "*.otf", "*.ttc"):
+        for padrao in ("*.ttf", "*.otf"):
             for fonte in pasta.rglob(padrao):
                 chave = fonte.resolve()
                 if chave in vistos:
                     continue
                 vistos.add(chave)
-                QFontDatabase.addApplicationFont(str(fonte))
+                try:
+                    QFontDatabase.addApplicationFont(str(fonte))
+                except Exception:
+                    pass
 
     _FONTES_DO_SISTEMA_REGISTRADAS = True
 
