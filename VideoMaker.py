@@ -264,11 +264,11 @@ def set_input_width(widget: QWidget):
 
 
 class ActionButton(QPushButton):
-    def __init__(self, text: str, kind: str = "normal"):
+    def __init__(self, text: str, kind: str = "normal", width: int = 112):
         super().__init__(text)
         self.kind = kind
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setMinimumWidth(112)
+        self.setMinimumWidth(width)
         self.setFixedHeight(34)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.refresh_style()
@@ -652,8 +652,8 @@ class MainUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Criador de Vídeo Lo-fi {APP_VERSION}")
-        self.resize(1420, 800)
-        self.setMinimumSize(1320, 720)
+        self.resize(1520, 820)
+        self.setMinimumSize(1420, 740)
         self.setStyleSheet(STYLE_PRIME)
 
         self.worker = None
@@ -816,7 +816,7 @@ class MainUI(QWidget):
     def build_right_panel(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("RightPanel")
-        panel.setFixedWidth(410)
+        panel.setFixedWidth(500)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(12, 14, 12, 12)
         layout.setSpacing(10)
@@ -899,7 +899,7 @@ class MainUI(QWidget):
             ("Limpar", lambda: self.intro_table.setRowCount(0)),
             ("Exemplo", self.sample_intro_rows),
         ):
-            btn = ActionButton(text, "ghost")
+            btn = ActionButton(text, "ghost", 84)
             btn.clicked.connect(slot)
             row.addWidget(btn)
         row.addStretch(1)

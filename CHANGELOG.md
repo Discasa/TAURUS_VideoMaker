@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.18 - 2026-05-09
+
+- Aumentada a largura da coluna de ajustes para evitar truncamento em abas e controles.
+- Reduzida a largura dos botões pequenos da aba Intro para acomodar ações lado a lado sem cortar texto.
+
 ## 8.0.17 - 2026-05-09
 
 - Corrigido o preview central para não cobrir textos e marca d'água ao redesenhar a borda da área do vídeo.
