@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.38 - 2026-05-09
+
+- Corrigido artefato visual no knob dos sliders.
+- Aumentada a altura do log quando ele está aberto.
+
 ## 8.0.37 - 2026-05-09
 
 - O botão Render/Parar agora controla apenas o preview vivo.

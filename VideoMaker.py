@@ -230,23 +230,30 @@ QProgressBar::chunk {
     background: #2F86FF;
     border-radius: 9px;
 }
+QSlider {
+    min-height: 24px;
+    max-height: 24px;
+}
 QSlider::groove:horizontal {
     background: #0D1420;
     border: 1px solid #31415C;
-    height: 7px;
-    border-radius: 4px;
+    height: 6px;
+    border-radius: 3px;
 }
 QSlider::sub-page:horizontal {
     background: #2F86FF;
-    border-radius: 4px;
+    border-radius: 3px;
 }
 QSlider::handle:horizontal {
-    background: #2F86FF;
-    border: 1px solid #6FB1FF;
-    width: 15px;
-    height: 15px;
-    margin: -5px 0;
-    border-radius: 8px;
+    background: #4B9AFF;
+    border: none;
+    width: 14px;
+    height: 14px;
+    margin: -4px 0;
+    border-radius: 7px;
+}
+QSlider::handle:horizontal:hover {
+    background: #6FB1FF;
 }
 QTableWidget {
     background: #0D1420;
@@ -1015,7 +1022,7 @@ class MainUI(QWidget):
 
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
-        self.log_widget.setFixedHeight(120)
+        self.log_widget.setFixedHeight(220)
         self.log_widget.hide()
         transport_layout.addWidget(self.log_widget)
         layout.addWidget(transport)
