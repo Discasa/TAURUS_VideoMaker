@@ -69,6 +69,7 @@ try:
         QMessageBox,
         QProgressBar,
         QPushButton,
+        QAbstractScrollArea,
         QSizePolicy,
         QSlider,
         QSpinBox,
@@ -1138,8 +1139,10 @@ class MainUI(QWidget):
         self.track_titles_table.verticalHeader().setVisible(False)
         self.track_titles_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.track_titles_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
-        self.track_titles_table.setFixedHeight(285)
-        layout.addWidget(self.track_titles_table)
+        self.track_titles_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.track_titles_table.setSizeAdjustPolicy(QAbstractScrollArea.AdjustIgnored)
+        self.track_titles_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        layout.addWidget(self.track_titles_table, 1)
 
         row = QHBoxLayout()
         row.addStretch(1)
@@ -1151,8 +1154,6 @@ class MainUI(QWidget):
         row.addWidget(self.btn_clear_titles)
         row.addStretch(1)
         layout.addLayout(row)
-
-        layout.addStretch(1)
         return tab
 
     def build_intro_tab(self) -> QWidget:

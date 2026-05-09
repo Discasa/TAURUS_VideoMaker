@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.51 - 2026-05-09
+
+- A tabela da aba Músicas agora ocupa a altura disponível da aba.
+- A área da scrollbar vertical fica reservada desde o início para listas longas de músicas.
+
 ## 8.0.50 - 2026-05-09
 
 - Promovida a tela Músicas para aba principal antes de Títulos.
