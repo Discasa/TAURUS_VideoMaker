@@ -707,7 +707,7 @@ class MainUI(QWidget):
         layout.addWidget(brand)
         layout.addWidget(subtitle)
 
-        media, media_layout = section("1. Arquivos de entrada")
+        media, media_layout = section("Arquivos de entrada")
         self.video_picker = PathPicker("file", "Mídia visual (*.mp4 *.mov *.mkv *.avi *.webm *.gif *.png *.jpg *.jpeg *.webp);;Todos (*.*)", "Vídeo, GIF ou imagem base")
         self.music_picker = PathPicker("folder", placeholder="Pasta com músicas")
         media_layout.addWidget(QLabel("Visual base"))
@@ -716,7 +716,7 @@ class MainUI(QWidget):
         media_layout.addWidget(self.music_picker)
         layout.addWidget(media)
 
-        ambience, ambience_layout = section("2. Som ambiente opcional")
+        ambience, ambience_layout = section("Som ambiente opcional")
         self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
         self.bg_vol_slider = QSlider(Qt.Horizontal)
         self.bg_vol_slider.setRange(0, 20)
@@ -734,7 +734,7 @@ class MainUI(QWidget):
         ambience_layout.addWidget(btn_clear_bg)
         layout.addWidget(ambience)
 
-        output, output_layout = section("3. Saída")
+        output, output_layout = section("Saída")
         self.out_picker = PathPicker("folder", placeholder="Automática: render_DATA_HORA")
         self.btn_open_output = ActionButton("Abrir pasta", "ghost")
         self.btn_open_output.clicked.connect(self.abrir_pasta_saida)

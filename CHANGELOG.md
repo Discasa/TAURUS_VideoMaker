@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.19 - 2026-05-09
+
+- Removida a numeração da coluna esquerda para adequar a UI ao modelo de editor, não mais a passos sequenciais.
+
 ## 8.0.18 - 2026-05-09
 
 - Aumentada a largura da coluna de ajustes para evitar truncamento em abas e controles.
