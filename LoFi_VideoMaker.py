@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.3.
+Versão 8.0.4.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.3"
+APP_VERSION = "8.0.4"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -3679,10 +3679,12 @@ class MainWindow(QWidget):
         self.bg_volume_title = QLabel("Volume do som de fundo")
         self.bg_volume_title.setObjectName("FieldLabel")
         self.bg_volume = QSlider(Qt.Horizontal)
-        self.bg_volume.setRange(0, 200)
-        self.bg_volume.setSingleStep(5)
-        self.bg_volume.setPageStep(10)
-        self.bg_volume.setValue(30)
+        self.bg_volume.setRange(0, 20)
+        self.bg_volume.setSingleStep(1)
+        self.bg_volume.setPageStep(1)
+        self.bg_volume.setTickPosition(QSlider.TicksBelow)
+        self.bg_volume.setTickInterval(1)
+        self.bg_volume.setValue(3)
         self.bg_volume.setMinimumWidth(160)
         self.bg_volume_value = QLabel("30%")
         self.bg_volume_value.setObjectName("FieldLabel")
@@ -3930,18 +3932,20 @@ class MainWindow(QWidget):
         self.timer.timeout.connect(self._atualizar_tempo)
 
     def _valor_volume_fundo(self) -> float:
-        return self.bg_volume.value() / 100.0
+        return self.bg_volume.value() / 10.0
 
     def _definir_volume_fundo(self, valor: float):
         try:
-            percentual = int(round(float(valor) * 100))
+            valor_numerico = float(valor)
         except (TypeError, ValueError):
-            percentual = 30
-        self.bg_volume.setValue(max(0, min(200, percentual)))
+            valor_numerico = 0.30
+        percentual = valor_numerico if valor_numerico > 2.0 else valor_numerico * 100
+        indice = int(round(percentual / 10))
+        self.bg_volume.setValue(max(0, min(20, indice)))
         self._atualizar_label_volume_fundo()
 
     def _atualizar_label_volume_fundo(self, *args):
-        self.bg_volume_value.setText(f"{self.bg_volume.value()}%")
+        self.bg_volume_value.setText(f"{self.bg_volume.value() * 10}%")
 
     def alternar_log(self):
         mostrar = not self.log_texto.isVisible()

@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.4 - 2026-05-09
+
+- Ajustado o slider de volume do som de fundo para aceitar apenas múltiplos de 10%.
+
 ## 8.0.3 - 2026-05-09
 
 - Aumentada a altura dos cards dos passos 1 e 2 para acomodar melhor os controles lado a lado.
