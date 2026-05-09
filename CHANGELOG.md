@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.34 - 2026-05-09
+
+- Trocados os controles de opacidade por sliders em toda a interface.
+- Trocados os controles de sombra por sliders, mantendo escala decimal compatível com o engine.
+
 ## 8.0.33 - 2026-05-09
 
 - Removido o botão redundante de carregar músicas da subaba Músicas.

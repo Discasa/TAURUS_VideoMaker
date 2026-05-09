@@ -511,6 +511,48 @@ class ColorEdit(QLineEdit):
         """)
 
 
+class DecimalSlider(QWidget):
+    def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 2):
+        super().__init__()
+        self.minimum = minimum
+        self.maximum = maximum
+        self.step = step
+        self.decimals = decimals
+        self.scale = int(round(1 / step))
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        self.slider = QSlider(Qt.Horizontal)
+        self.slider.setRange(self._to_slider(minimum), self._to_slider(maximum))
+        self.slider.setFixedHeight(CONTROL_HEIGHT)
+        self.label = QLabel()
+        self.label.setObjectName("Subtle")
+        self.label.setFixedWidth(44)
+        self.label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        layout.addWidget(self.slider, 1)
+        layout.addWidget(self.label)
+
+        self.slider.valueChanged.connect(self._refresh_label)
+        self.setValue(value)
+
+    def _to_slider(self, value: float) -> int:
+        return int(round(float(value) * self.scale))
+
+    def _from_slider(self, value: int) -> float:
+        return max(self.minimum, min(self.maximum, float(value) / self.scale))
+
+    def _refresh_label(self):
+        self.label.setText(f"{self.value():.{self.decimals}f}")
+
+    def value(self) -> float:
+        return self._from_slider(self.slider.value())
+
+    def setValue(self, value: float):
+        self.slider.setValue(self._to_slider(value))
+        self._refresh_label()
+
+
 class PathPicker(QWidget):
     def __init__(self, mode: str, filter_text: str = "Todos (*.*)", placeholder: str = ""):
         super().__init__()
@@ -996,8 +1038,8 @@ class MainUI(QWidget):
         self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 800); self.font_titles_my.setValue(42)
         self.font_titles_typ = QDoubleSpinBox(); self.font_titles_typ.setRange(0.1, 20); self.font_titles_typ.setValue(2.2)
         self.font_titles_era = QDoubleSpinBox(); self.font_titles_era.setRange(0.1, 20); self.font_titles_era.setValue(1.6)
-        self.font_titles_opc = QDoubleSpinBox(); self.font_titles_opc.setRange(0.05, 1.0); self.font_titles_opc.setSingleStep(0.05); self.font_titles_opc.setValue(0.93)
-        self.font_titles_shadow = QDoubleSpinBox(); self.font_titles_shadow.setRange(0, 1); self.font_titles_shadow.setSingleStep(0.05); self.font_titles_shadow.setValue(0.60)
+        self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.01, 0.93)
+        self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.01, 0.60)
 
         color_row = self.color_row(self.font_titles_color)
         add_row(form, 0, "Fonte", self.font_titles)
@@ -1123,14 +1165,14 @@ class MainUI(QWidget):
         self.intro_font_size = QSpinBox(); self.intro_font_size.setRange(8, 180); self.intro_font_size.setValue(48)
         self.intro_font_weight = QSpinBox(); self.intro_font_weight.setRange(100, 900); self.intro_font_weight.setSingleStep(50); self.intro_font_weight.setValue(700)
         self.intro_color = ColorEdit("#FFFFFF")
-        self.intro_opacity = QDoubleSpinBox(); self.intro_opacity.setRange(0.05, 1.0); self.intro_opacity.setSingleStep(0.05); self.intro_opacity.setValue(0.92)
+        self.intro_opacity = DecimalSlider(0.05, 1.0, 0.01, 0.92)
         self.intro_pos = combo_posicao("inferior_esquerda")
         self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
         self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
-        self.intro_shadow_size = QDoubleSpinBox(); self.intro_shadow_size.setRange(0, 10); self.intro_shadow_size.setSingleStep(0.1); self.intro_shadow_size.setValue(1.4)
-        self.intro_shadow_opacity = QDoubleSpinBox(); self.intro_shadow_opacity.setRange(0, 1); self.intro_shadow_opacity.setSingleStep(0.05); self.intro_shadow_opacity.setValue(0.65)
+        self.intro_shadow_size = DecimalSlider(0.0, 10.0, 0.1, 1.4, decimals=1)
+        self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.01, 0.65)
         self.intro_background_box = ToggleSwitch("Fundo transparente atrás do texto")
-        self.intro_box_opacity = QDoubleSpinBox(); self.intro_box_opacity.setRange(0, 1); self.intro_box_opacity.setSingleStep(0.05); self.intro_box_opacity.setValue(0.35)
+        self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.01, 0.35)
 
         add_row(form, 0, "Fonte", self.intro_font)
         add_row(form, 1, "Tamanho", self.intro_font_size)
@@ -1191,11 +1233,11 @@ class MainUI(QWidget):
         self.wm_font = combo_fontes("Segoe UI Symbol")
         self.wm_font_size = QSpinBox(); self.wm_font_size.setRange(8, 180); self.wm_font_size.setValue(44)
         self.wm_color = ColorEdit("#FFFFFF")
-        self.wm_opacity = QDoubleSpinBox(); self.wm_opacity.setRange(0.05, 1.0); self.wm_opacity.setSingleStep(0.05); self.wm_opacity.setValue(0.70)
+        self.wm_opacity = DecimalSlider(0.05, 1.0, 0.01, 0.70)
         self.wm_pos = combo_posicao("inferior_direita")
         self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
         self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
-        self.wm_shadow = QDoubleSpinBox(); self.wm_shadow.setRange(0, 1); self.wm_shadow.setSingleStep(0.05); self.wm_shadow.setValue(0.60)
+        self.wm_shadow = DecimalSlider(0.0, 1.0, 0.01, 0.60)
         add_wide(form, 0, self.wm_enabled)
         add_row(form, 1, "Tipo", self.wm_mode)
         self.wm_text_label = add_row(form, 2, "Texto", self.wm_text)
