@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.28 - 2026-05-09
+
+- Corrigidos defeitos visuais nos cantos da tabela de frases da intro.
+- Centralizados os botões da aba de frases da intro.
+- Centralizado o conteúdo das abas da coluna direita e ajustadas larguras para leitura mais harmônica.
+
 ## 8.0.27 - 2026-05-09
 
 - Padronizada a altura de campos de texto, seletores, campos numéricos e botões.

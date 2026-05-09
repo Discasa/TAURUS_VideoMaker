@@ -220,8 +220,18 @@ QSlider::handle:horizontal {
 QTableWidget {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 12px;
+    border-radius: 0px;
     gridline-color: #26354D;
+    outline: none;
+}
+QTableWidget::item {
+    padding: 3px 5px;
+}
+QTableCornerButton::section {
+    background: #17263C;
+    border: none;
+    border-right: 1px solid #31415C;
+    border-bottom: 1px solid #31415C;
 }
 QHeaderView::section {
     background: #17263C;
@@ -230,6 +240,48 @@ QHeaderView::section {
     padding: 5px;
     color: #CFE2FF;
     font-weight: 700;
+}
+QScrollBar:vertical {
+    background: #0D1420;
+    border-left: 1px solid #26354D;
+    width: 12px;
+    margin: 0px;
+}
+QScrollBar::handle:vertical {
+    background: #26354D;
+    border-radius: 5px;
+    min-height: 24px;
+    margin: 2px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #31415C;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
+QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
+    background: transparent;
+    border: none;
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background: #0D1420;
+    border-top: 1px solid #26354D;
+    height: 12px;
+    margin: 0px;
+}
+QScrollBar::handle:horizontal {
+    background: #26354D;
+    border-radius: 5px;
+    min-width: 24px;
+    margin: 2px;
+}
+QScrollBar::handle:horizontal:hover {
+    background: #31415C;
+}
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
+QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
+    background: transparent;
+    border: none;
+    width: 0px;
 }
 """
 
@@ -264,6 +316,24 @@ def add_row(form: QGridLayout, row: int, label: str, widget: QWidget):
 
 def add_wide(form: QGridLayout, row: int, widget: QWidget):
     form.addWidget(widget, row, 0, 1, 2)
+
+
+def centered_widget(widget: QWidget, max_width: int = 360) -> QWidget:
+    wrapper = QWidget()
+    layout = QHBoxLayout(wrapper)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.addStretch(1)
+    widget.setMaximumWidth(max_width)
+    layout.addWidget(widget)
+    layout.addStretch(1)
+    return wrapper
+
+
+def centered_layout(inner_layout, max_width: int = 360) -> QWidget:
+    box = QWidget()
+    box.setMaximumWidth(max_width)
+    box.setLayout(inner_layout)
+    return centered_widget(box, max_width)
 
 
 def set_input_width(widget: QWidget):
@@ -887,7 +957,7 @@ class MainUI(QWidget):
         add_row(form, 6, "Apaga por", self.font_titles_era)
         add_row(form, 7, "Opacidade", self.font_titles_opc)
         add_row(form, 8, "Sombra", self.font_titles_shadow)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
 
@@ -912,11 +982,15 @@ class MainUI(QWidget):
         layout.addWidget(self.intro_enabled)
         self.intro_table = QTableWidget(0, 3)
         self.intro_table.setHorizontalHeaderLabels(["Início", "Duração", "Frase"])
+        self.intro_table.setShowGrid(True)
+        self.intro_table.setCornerButtonEnabled(False)
+        self.intro_table.setFrameShape(QFrame.NoFrame)
         self.intro_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
         self.intro_table.setFixedHeight(200)
         layout.addWidget(self.intro_table)
 
         row = QHBoxLayout()
+        row.addStretch(1)
         for text, slot in (
             ("Adicionar", lambda: self.add_intro_row("0.0", "4.0", "Nova frase...")),
             ("Remover", self.remove_intro_rows),
@@ -941,9 +1015,10 @@ class MainUI(QWidget):
         add_row(form, 1, "Música após", self.intro_delay)
         add_wide(form, 2, self.intro_randomize)
         add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
 
         preset_row = QHBoxLayout()
+        preset_row.addStretch(1)
         btn_save = ActionButton("Salvar preset", "ghost")
         btn_load = ActionButton("Carregar preset", "ghost")
         btn_save.clicked.connect(self.save_intro_preset)
@@ -985,7 +1060,7 @@ class MainUI(QWidget):
         add_row(form, 8, "Opac. sombra", self.intro_shadow_opacity)
         add_wide(form, 9, self.intro_background_box)
         add_row(form, 10, "Opac. fundo", self.intro_box_opacity)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
 
@@ -1009,7 +1084,7 @@ class MainUI(QWidget):
         add_row(form, 3, "Backspace", self.intro_backspace_cps)
         add_wide(form, 4, self.intro_show_cursor)
         add_wide(form, 5, self.intro_backspace_audio)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
 
@@ -1045,7 +1120,7 @@ class MainUI(QWidget):
         add_row(form, 9, "Posição", self.wm_pos)
         add_row(form, 10, "Margens", margins_widget(self.wm_mx, self.wm_my))
         add_row(form, 11, "Sombra", self.wm_shadow)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
         self.update_watermark_mode(self.wm_mode.currentText())
@@ -1072,8 +1147,8 @@ class MainUI(QWidget):
         btn_clear_bg.clicked.connect(lambda: self.bg_picker.set_path(""))
         ambience_layout.addWidget(self.bg_picker)
         ambience_layout.addLayout(volume_row)
-        ambience_layout.addWidget(btn_clear_bg, 0, Qt.AlignLeft)
-        layout.addWidget(ambience)
+        ambience_layout.addWidget(btn_clear_bg, 0, Qt.AlignHCenter)
+        layout.addWidget(centered_widget(ambience, 380))
 
         form = QGridLayout()
         setup_form(form)
@@ -1094,7 +1169,7 @@ class MainUI(QWidget):
         add_wide(form, 4, self.set_norm)
         add_row(form, 5, "Target LUFS", self.set_lufs)
         add_row(form, 6, "True peak", self.set_peak)
-        layout.addLayout(form)
+        layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
 
