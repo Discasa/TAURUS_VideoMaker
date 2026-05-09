@@ -44,6 +44,7 @@ from engine import (
 CONTROL_HEIGHT = 34
 PREVIEW_HEIGHT_NORMAL = 380
 PREVIEW_HEIGHT_LOG_OPEN = 270
+PREVIEW_ASPECT_RATIO = 16 / 9
 LOG_HEIGHT_OPEN = 260
 
 try:
@@ -983,11 +984,15 @@ class MainUI(QWidget):
         self.video_player.setVideoOutput(self.video_widget)
         self.video_player.mediaStatusChanged.connect(self.loop_preview_video)
         self.video_widget.hide()
-        self.preview.setFixedHeight(PREVIEW_HEIGHT_NORMAL)
-        self.video_widget.setFixedHeight(PREVIEW_HEIGHT_NORMAL)
+
+        self.preview_group = QWidget()
+        preview_group_layout = QVBoxLayout(self.preview_group)
+        preview_group_layout.setContentsMargins(0, 0, 0, 0)
+        preview_group_layout.setSpacing(4)
+        preview_group_layout.addWidget(self.preview)
+        preview_group_layout.addWidget(self.video_widget)
+        self.set_preview_group_height(PREVIEW_HEIGHT_NORMAL)
         preview_layout.addStretch(1)
-        preview_layout.addWidget(self.preview)
-        preview_layout.addWidget(self.video_widget)
         volume_row = QHBoxLayout()
         volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.addStretch(1)
@@ -1001,7 +1006,8 @@ class MainUI(QWidget):
         volume_row.addWidget(QLabel("Volume"))
         volume_row.addWidget(self.preview_volume_slider)
         volume_row.addWidget(self.preview_volume_label)
-        preview_layout.addLayout(volume_row)
+        preview_group_layout.addLayout(volume_row)
+        preview_layout.addWidget(self.preview_group, 0, Qt.AlignHCenter)
         preview_layout.addStretch(1)
         layout.addWidget(preview_shell, 1)
 
@@ -1380,6 +1386,12 @@ class MainUI(QWidget):
         layout.addWidget(edit, 1)
         layout.addWidget(button)
         return box
+
+    def set_preview_group_height(self, height: int):
+        width = int(height * PREVIEW_ASPECT_RATIO)
+        self.preview.setFixedSize(width, height)
+        self.video_widget.setFixedSize(width, height)
+        self.preview_group.setFixedWidth(width)
 
     # ---------- Preview ----------
 
@@ -1876,8 +1888,8 @@ class MainUI(QWidget):
         self.log_widget.setVisible(visible)
         self.btn_log.setText("Ocultar log" if visible else "Mostrar log")
         preview_height = PREVIEW_HEIGHT_LOG_OPEN if visible else PREVIEW_HEIGHT_NORMAL
-        self.preview.setFixedHeight(preview_height)
-        self.video_widget.setFixedHeight(preview_height)
+        self.set_preview_group_height(preview_height)
+        self.preview_group.updateGeometry()
         self.preview.updateGeometry()
         self.video_widget.updateGeometry()
         self.center_panel.updateGeometry()

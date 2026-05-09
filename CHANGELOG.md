@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.45 - 2026-05-09
+
+- O slider de volume agora acompanha a largura e posição do preview ao abrir ou fechar o log.
+
 ## 8.0.44 - 2026-05-09
 
 - Ajustado o layout quando o log é aberto para evitar truncamento e sobreposição no preview.
