@@ -4,7 +4,7 @@ TAURUS Video Maker é um aplicativo de desktop para Windows que cria vídeos lo-
 
 ## Versão Atual
 
-O script está na versão `8.0.51`.
+O script está na versão `8.0.52`.
 
 A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
 
@@ -29,11 +29,13 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 ## Como Rodar Pelo Código-Fonte
 
 ```powershell
-cd F:\scripts\GitHub\LoFi_VideoMaker
+cd F:\scripts\GitHub\TAURUS_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe .\VideoMaker.py
 ```
+
+Repositório oficial: [Discasa/TAURUS_VideoMaker](https://github.com/Discasa/TAURUS_VideoMaker).
 
 O script espera encontrar o FFmpeg nestes caminhos dentro do projeto:
 

@@ -6,7 +6,7 @@ O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual bas
 
 ## Versão do Script
 
-A versão atual do script é `8.0.51`.
+A versão atual do script é `8.0.52`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
@@ -21,11 +21,13 @@ Sempre que a versão do script mudar, atualize:
 Use PowerShell na pasta do projeto:
 
 ```powershell
-cd F:\scripts\GitHub\LoFi_VideoMaker
+cd F:\scripts\GitHub\TAURUS_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
 .\.venv\Scripts\python.exe .\VideoMaker.py
 ```
+
+Repositório oficial no GitHub: [Discasa/TAURUS_VideoMaker](https://github.com/Discasa/TAURUS_VideoMaker).
 
 Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [VideoMaker.py](VideoMaker.py).
 

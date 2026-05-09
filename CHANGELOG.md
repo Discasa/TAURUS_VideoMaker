@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.52 - 2026-05-09
+
+- Atualizada a documentação para apontar para o repositório `Discasa/TAURUS_VideoMaker`.
+
 ## 8.0.51 - 2026-05-09
 
 - A tabela da aba Músicas agora ocupa a altura disponível da aba.
