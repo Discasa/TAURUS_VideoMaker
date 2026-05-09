@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.31 - 2026-05-09
+
+- Removido código legado de legendas ASS/subtitles que não era mais usado pelo render atual.
+- Removidos helpers sem uso ligados ao fluxo antigo de prévia da intro e filtros antigos.
+- Removidos imports não utilizados na UI e no backend.
+
 ## 8.0.30 - 2026-05-09
 
 - Substituído o campo de texto por um preview da imagem quando a marca d'água está no modo imagem.

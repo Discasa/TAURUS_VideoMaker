@@ -18,7 +18,6 @@ import signal
 import subprocess
 import sys
 import threading
-import time
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
@@ -32,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.30"
+APP_VERSION = "8.0.31"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -244,11 +243,6 @@ def segundos_para_ffmpeg(segundos: float) -> str:
 
 def caminho_ou_vazio(caminho: Path | None) -> str:
     return str(caminho) if caminho else ""
-
-
-def texto_para_path_ou_none(texto: str | None) -> Path | None:
-    texto = (texto or "").strip()
-    return Path(texto) if texto else None
 
 
 def carregar_json_config() -> dict:
@@ -509,26 +503,6 @@ def limpar_titulo_musica(arquivo: Path) -> str:
     return titulo or arquivo.stem
 
 
-def segundos_para_ass_tempo(segundos: float) -> str:
-    segundos = max(0.0, float(segundos))
-    horas = int(segundos // 3600)
-    minutos = int((segundos % 3600) // 60)
-    seg = int(segundos % 60)
-    centesimos = int(round((segundos - int(segundos)) * 100))
-
-    if centesimos >= 100:
-        centesimos = 0
-        seg += 1
-        if seg >= 60:
-            seg = 0
-            minutos += 1
-        if minutos >= 60:
-            minutos = 0
-            horas += 1
-
-    return f"{horas}:{minutos:02d}:{seg:02d}.{centesimos:02d}"
-
-
 def segundos_para_legivel(segundos: float) -> str:
     segundos = max(0, int(round(segundos)))
     h = segundos // 3600
@@ -537,15 +511,6 @@ def segundos_para_legivel(segundos: float) -> str:
     if h:
         return f"{h}:{m:02d}:{s:02d}"
     return f"{m:02d}:{s:02d}"
-
-
-def escape_ass_texto(texto: str) -> str:
-    return (
-        texto.replace("\\", "\\\\")
-        .replace("{", "\\{")
-        .replace("}", "\\}")
-        .replace("\n", "\\N")
-    )
 
 
 def escape_drawtext(texto: str) -> str:
@@ -568,13 +533,6 @@ def escape_fontfile(caminho) -> str:
     return caminho
 
 
-def escape_path_filter(path) -> str:
-    caminho = Path(path).resolve().as_posix()
-    caminho = caminho.replace(":", "\\:")
-    caminho = caminho.replace("'", "\\'")
-    return caminho
-
-
 def limpar_hex(cor: str, fallback: str = "#FFFFFF") -> str:
     cor = (cor or "").strip()
     if not cor.startswith("#"):
@@ -584,32 +542,10 @@ def limpar_hex(cor: str, fallback: str = "#FFFFFF") -> str:
     return fallback
 
 
-def hex_para_rgb(cor: str):
-    cor = limpar_hex(cor).lstrip("#")
-    return int(cor[0:2], 16), int(cor[2:4], 16), int(cor[4:6], 16)
-
-
-def cor_ass(cor_hex: str, opacity: float) -> str:
-    r, g, b = hex_para_rgb(cor_hex)
-    opacity = max(0.0, min(1.0, float(opacity)))
-    alpha = int(round((1.0 - opacity) * 255))
-    return f"&H{alpha:02X}{b:02X}{g:02X}{r:02X}"
-
-
 def cor_drawtext(cor_hex: str, opacity: float) -> str:
     cor = limpar_hex(cor_hex).replace("#", "0x")
     opacity = max(0.0, min(1.0, float(opacity)))
     return f"{cor}@{opacity:.3f}"
-
-
-def escape_filter_value(texto: str) -> str:
-    return (
-        (texto or "")
-        .replace("\\", "\\\\")
-        .replace(":", "\\:")
-        .replace("'", "\\'")
-        .replace("%", "\\%")
-    )
 
 
 def opcoes_posicao():
@@ -629,20 +565,6 @@ def popular_combo_posicoes(combo, valor_atual: str):
         combo.addItem(texto, valor)
     idx = combo.findData(valor_atual)
     combo.setCurrentIndex(max(0, idx))
-
-
-def ass_alignment_from_position(position: str) -> int:
-    # ASS/libass: 1=inferior esquerda, 2=inferior centro, 3=inferior direita,
-    # 7=superior esquerda, 8=superior centro, 9=superior direita, 5=centro.
-    return {
-        "inferior_esquerda": 1,
-        "inferior_direita": 3,
-        "superior_esquerda": 7,
-        "superior_direita": 9,
-        "superior_centro": 8,
-        "inferior_centro": 2,
-        "centro": 5,
-    }.get(position, 1)
 
 
 def overlay_position_expr(position: str, margin_x: int, margin_y: int) -> tuple[str, str]:
@@ -751,7 +673,6 @@ class RenderEngine:
         self.log(f"Pasta de saída: {self.config.output_folder}\n")
         self.log(f"Renderização: {'GPU NVIDIA / NVENC' if self.config.use_gpu else 'CPU / libx264'}\n")
 
-        self.testar_filtro_subtitles()
         usar_gpu = self.config.use_gpu and self.testar_nvenc()
 
         tracks = self.detectar_tracks()
@@ -1055,239 +976,6 @@ class RenderEngine:
             "inicio_backspace": inicio_backspace,
             "fim_backspace": fim_backspace,
         }
-
-    def criar_eventos_typewriter_intro(self, start: float, end: float, texto: str, estilo: str) -> list[str]:
-        cfg = self.config.intro
-        eventos: list[str] = []
-        texto_limpo = escape_ass_texto(texto)
-        total_chars = len(texto_limpo)
-        if total_chars <= 0 or end <= start:
-            return eventos
-
-        efeito = (cfg.effect or "typewriter").lower()
-        usar_fade = efeito in {"fade", "typewriter_fade"}
-        usar_typewriter = efeito in {"typewriter", "typewriter_fade"}
-        fade_tag = r"{\fad(350,650)}" if usar_fade else ""
-        peso = max(100, min(900, int(getattr(cfg, "font_weight", 700))))
-        peso_tag = rf"{{\b{peso}}}"
-        prefixo = peso_tag + fade_tag
-
-        if not usar_typewriter:
-            eventos.append(
-                f"Dialogue: 2,{segundos_para_ass_tempo(start)},{segundos_para_ass_tempo(end)},{estilo},,0,0,0,,{prefixo}{texto_limpo}"
-            )
-            return eventos
-
-        fake = IntroFraseConfig(start, end - start, texto)
-        tempos = self.tempos_intro_frase(fake)
-        cursor = "|" if cfg.show_cursor else ""
-
-        dur_digitando = tempos["dur_digitando"]
-        passo = dur_digitando / total_chars
-        for i in range(1, total_chars + 1):
-            t1 = start + ((i - 1) * passo)
-            t2 = min(start + (i * passo), tempos["inicio_backspace"])
-            if t2 <= t1:
-                continue
-            parte = texto_limpo[:i] + cursor
-            eventos.append(
-                f"Dialogue: 2,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},{estilo},,0,0,0,,{prefixo}{parte}"
-            )
-
-        # Trecho parado com cursor piscando de verdade.
-        hold_inicio = max(start + dur_digitando, tempos["fim_digitando"])
-        hold_fim = tempos["inicio_backspace"]
-        if hold_fim > hold_inicio:
-            if cfg.show_cursor:
-                t = hold_inicio
-                visivel = True
-                passo_blink = 0.45
-                while t < hold_fim:
-                    t2 = min(t + passo_blink, hold_fim)
-                    cursor_atual = "|" if visivel else ""
-                    eventos.append(
-                        f"Dialogue: 2,{segundos_para_ass_tempo(t)},{segundos_para_ass_tempo(t2)},{estilo},,0,0,0,,{prefixo}{texto_limpo}{cursor_atual}"
-                    )
-                    visivel = not visivel
-                    t = t2
-            else:
-                eventos.append(
-                    f"Dialogue: 2,{segundos_para_ass_tempo(hold_inicio)},{segundos_para_ass_tempo(hold_fim)},{estilo},,0,0,0,,{prefixo}{texto_limpo}"
-                )
-
-        # Backspace: apaga letra por letra no final da duração da frase.
-        dur_backspace = tempos["dur_backspace"]
-        passo_back = dur_backspace / total_chars
-        for chars_restantes in range(total_chars, -1, -1):
-            indice = total_chars - chars_restantes
-            t1 = tempos["inicio_backspace"] + (indice * passo_back)
-            t2 = min(tempos["inicio_backspace"] + ((indice + 1) * passo_back), end)
-            if t2 <= t1:
-                continue
-            parte = texto_limpo[:chars_restantes]
-            if chars_restantes > 0 and cfg.show_cursor:
-                parte += "|"
-            eventos.append(
-                f"Dialogue: 2,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},{estilo},,0,0,0,,{prefixo}{parte}"
-            )
-        return eventos
-
-    def gerar_arquivo_ass_completo(self, tracks: list[TrackInfo] | None = None) -> Path:
-        tracks = tracks or []
-        cfg = self.config.fonte_texto
-        intro = self.config.intro
-        arquivo_ass = TEMP_DIR / "legendas_completas.ass"
-
-        primary = cor_ass(cfg.color, cfg.opacity)
-        outline = cor_ass("#000000", 0.60)
-        shadow = cor_ass("#000000", cfg.shadow_opacity)
-        alignment = ass_alignment_from_position(cfg.position)
-        margem_horizontal = max(0, int(cfg.margin_left))
-        margem_vertical = max(0, int(cfg.margin_bottom))
-
-        intro_primary = cor_ass(intro.color, intro.opacity)
-        intro_outline = cor_ass("#000000", 0.70)
-        intro_shadow = cor_ass("#000000", intro.shadow_opacity)
-        intro_back = cor_ass("#000000", intro.box_opacity if intro.background_box else intro.shadow_opacity)
-        intro_border_style = 3 if intro.background_box else 1
-        intro_bold_style = -1 if int(getattr(intro, "font_weight", 700)) >= 600 else 0
-        intro_shadow_size = max(0.0, float(getattr(intro, "shadow_size", 1.4)))
-        intro_alignment = ass_alignment_from_position(intro.position)
-        intro_margin_x = max(0, int(intro.margin_x))
-        intro_margin_y = max(0, int(intro.margin_y))
-
-        header = f"""[Script Info]
-ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Musica,{cfg.font_family},{cfg.font_size},{primary},&H000000FF,{outline},{shadow},0,0,0,0,100,100,0,0,1,1.6,1.4,{alignment},{margem_horizontal},{margem_horizontal},{margem_vertical},1
-Style: Intro,{intro.font_family},{intro.font_size},{intro_primary},&H000000FF,{intro_outline},{intro_back},{intro_bold_style},0,0,0,100,100,0,0,{intro_border_style},1.8,{intro_shadow_size:.2f},{intro_alignment},{intro_margin_x},{intro_margin_x},{intro_margin_y},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-"""
-        eventos: list[str] = []
-
-        if intro.enabled:
-            for frase in self.frases_intro_ativas():
-                inicio = max(0.0, float(frase.inicio))
-                fim = inicio + max(0.1, float(frase.duracao))
-                eventos.extend(self.criar_eventos_typewriter_intro(inicio, fim, frase.texto, "Intro"))
-
-        for track in tracks:
-            start = track.inicio + max(0.0, self.config.intro.delay_music_seconds if self.config.intro.enabled else 0.0)
-            end = track.fim + max(0.0, self.config.intro.delay_music_seconds if self.config.intro.enabled else 0.0)
-            duracao = max(0.1, end - start)
-            texto = escape_ass_texto(track.titulo)
-            total_chars = len(texto)
-            if total_chars <= 0:
-                continue
-
-            dur_digitando = min(cfg.typing_duration, duracao * 0.35)
-            dur_apagando = min(cfg.erasing_duration, duracao * 0.25)
-            inicio_digitando = start
-            fim_digitando = start + dur_digitando
-            inicio_apagando = max(fim_digitando, end - dur_apagando)
-            passo_digitar = dur_digitando / total_chars
-            for i in range(1, total_chars + 1):
-                t1 = inicio_digitando + ((i - 1) * passo_digitar)
-                t2 = inicio_digitando + (i * passo_digitar)
-                parte = texto[:i]
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},Musica,,0,0,0,,{parte}"
-                )
-            if inicio_apagando > fim_digitando:
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(fim_digitando)},{segundos_para_ass_tempo(inicio_apagando)},Musica,,0,0,0,,{texto}"
-                )
-            passo_apagar = dur_apagando / total_chars
-            for i in range(total_chars, 0, -1):
-                indice = total_chars - i
-                t1 = inicio_apagando + (indice * passo_apagar)
-                t2 = inicio_apagando + ((indice + 1) * passo_apagar)
-                parte = texto[:i]
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},Musica,,0,0,0,,{parte}"
-                )
-
-        arquivo_ass.write_text(header + "\n".join(eventos), encoding="utf-8")
-        return arquivo_ass
-
-    def gerar_arquivo_ass_musicas(self, tracks: list[TrackInfo]) -> Path:
-        cfg = self.config.fonte_texto
-        arquivo_ass = TEMP_DIR / "musicas_typewriter.ass"
-
-        primary = cor_ass(cfg.color, cfg.opacity)
-        outline = cor_ass("#000000", 0.60)
-        shadow = cor_ass("#000000", cfg.shadow_opacity)
-
-        alignment = ass_alignment_from_position(cfg.position)
-        margem_horizontal = max(0, int(cfg.margin_left))
-        margem_vertical = max(0, int(cfg.margin_bottom))
-
-        header = f"""[Script Info]
-ScriptType: v4.00+
-PlayResX: 1920
-PlayResY: 1080
-ScaledBorderAndShadow: yes
-
-[V4+ Styles]
-Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
-Style: Musica,{cfg.font_family},{cfg.font_size},{primary},&H000000FF,{outline},{shadow},0,0,0,0,100,100,0,0,1,1.6,1.4,{alignment},{margem_horizontal},{margem_horizontal},{margem_vertical},1
-
-[Events]
-Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
-"""
-
-        eventos: list[str] = []
-
-        for track in tracks:
-            start = track.inicio
-            end = track.fim
-            duracao = max(0.1, end - start)
-            texto = escape_ass_texto(track.titulo)
-            total_chars = len(texto)
-            if total_chars <= 0:
-                continue
-
-            dur_digitando = min(cfg.typing_duration, duracao * 0.35)
-            dur_apagando = min(cfg.erasing_duration, duracao * 0.25)
-
-            inicio_digitando = start
-            fim_digitando = start + dur_digitando
-            inicio_apagando = max(fim_digitando, end - dur_apagando)
-            fim_apagando = end
-
-            passo_digitar = dur_digitando / total_chars
-            for i in range(1, total_chars + 1):
-                t1 = inicio_digitando + ((i - 1) * passo_digitar)
-                t2 = inicio_digitando + (i * passo_digitar)
-                parte = texto[:i]
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},Musica,,0,0,0,,{parte}"
-                )
-
-            if inicio_apagando > fim_digitando:
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(fim_digitando)},{segundos_para_ass_tempo(inicio_apagando)},Musica,,0,0,0,,{texto}"
-                )
-
-            passo_apagar = dur_apagando / total_chars
-            for i in range(total_chars, 0, -1):
-                indice = total_chars - i
-                t1 = inicio_apagando + (indice * passo_apagar)
-                t2 = inicio_apagando + ((indice + 1) * passo_apagar)
-                parte = texto[:i]
-                eventos.append(
-                    f"Dialogue: 0,{segundos_para_ass_tempo(t1)},{segundos_para_ass_tempo(t2)},Musica,,0,0,0,,{parte}"
-                )
-
-        arquivo_ass.write_text(header + "\n".join(eventos), encoding="utf-8")
-        return arquivo_ass
 
     def criar_drawtext_watermark(self) -> str | None:
         cfg = self.config.watermark
@@ -1963,7 +1651,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         self.log("\n=== Render de teste de 30 segundos ===\n")
         self.log("O teste renderiza somente o começo da playlist, com textos, intro, áudio de fundo e marca d'água.\n")
 
-        self.testar_filtro_subtitles()
         usar_gpu = self.config.use_gpu and self.testar_nvenc()
 
         tracks_originais = self.detectar_tracks()
@@ -1992,134 +1679,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         self.log(f"Vídeo de teste criado em: {saida_final}\n")
         return saida_final
 
-    def gerar_preview_intro(self) -> Path:
-        self.validar()
-        self.preparar_pastas()
-        self.stage("Gerando prévia da intro com música")
-        intro = self.config.intro
-        frases = self.frases_intro_ativas() if intro.enabled else []
-        tracks = self.detectar_tracks()
-
-        duracao_intro = max([frase.inicio + frase.duracao for frase in frases], default=12.0)
-        # A prévia inclui alguns segundos extras depois da intro para você ouvir a relação
-        # entre música, chuva/fundo e som de digitação.
-        duracao = duracao_intro + 6.0
-        duracao = min(max(duracao, 8.0), 75.0)
-        saida = self.config.output_folder / f"preview_intro_{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.mp4"
-        CONTROLE_EXECUCAO.registrar_arquivo_temporario(saida)
-
-        usar_typing = bool(intro.enabled and intro.typing_audio_path)
-        usar_fundo = self.config.background_audio_path is not None
-        usar_gpu = self.config.use_gpu and self.testar_nvenc()
-        delay_musica = max(0.0, intro.delay_music_seconds if intro.enabled else 0.0)
-
-        # Entrada 0 = mídia visual base; entrada 1 = primeira música detectada.
-        primeira_musica = tracks[0].arquivo
-        comando = [
-            str(FFMPEG),
-            "-y",
-        ]
-        comando += self.argumentos_entrada_visual_base()
-        comando += ["-i", str(primeira_musica)]
-
-        proximo_indice = 2
-        indice_fundo = None
-        indice_typing = None
-        indice_watermark_imagem = None
-        usar_watermark_imagem = (
-            self.config.watermark.enabled
-            and self.config.watermark.mode == "imagem"
-            and bool(self.config.watermark.image_path)
-        )
-
-        if usar_fundo:
-            indice_fundo = proximo_indice
-            proximo_indice += 1
-            comando += ["-stream_loop", "-1", "-i", str(self.config.background_audio_path)]
-
-        if usar_typing:
-            indice_typing = proximo_indice
-            proximo_indice += 1
-            comando += ["-stream_loop", "-1", "-i", str(intro.typing_audio_path)]
-
-        if usar_watermark_imagem:
-            indice_watermark_imagem = proximo_indice
-            proximo_indice += 1
-            comando += ["-loop", "1", "-i", str(self.config.watermark.image_path)]
-
-        # Usa drawtext direto também na prévia, sem subtitles/libass.
-        # Isso evita o crash 3221225477 em algumas builds novas do FFmpeg no Windows.
-        filtros = [self.criar_filtro_video([], indice_watermark_imagem if usar_watermark_imagem else None)]
-
-        audio_labels: list[str] = []
-        filtros.append(f"[1:a]atrim=0:{segundos_para_ffmpeg(duracao)},asetpts=PTS-STARTPTS[music_raw]")
-        if delay_musica > 0:
-            atraso_ms = int(round(delay_musica * 1000))
-            filtros.append(
-                f"[music_raw]adelay={atraso_ms}:all=1,apad=whole_dur={segundos_para_ffmpeg(duracao)},"
-                f"atrim=0:{segundos_para_ffmpeg(duracao)},asetpts=PTS-STARTPTS,volume=1.0[music]"
-            )
-        else:
-            filtros.append(
-                f"[music_raw]apad=whole_dur={segundos_para_ffmpeg(duracao)},"
-                f"atrim=0:{segundos_para_ffmpeg(duracao)},asetpts=PTS-STARTPTS,volume=1.0[music]"
-            )
-        audio_labels.append("[music]")
-
-        if usar_fundo:
-            filtros.append(
-                f"[{indice_fundo}:a]volume={self.config.background_volume},"
-                f"atrim=0:{segundos_para_ffmpeg(duracao)},asetpts=PTS-STARTPTS[bg]"
-            )
-            audio_labels.append("[bg]")
-
-        if usar_typing and indice_typing is not None:
-            parts: list[str] = []
-            for idx, frase in enumerate(frases):
-                tempos = self.tempos_intro_frase(frase)
-
-                type_delay_ms = int(round(tempos["inicio_digitando"] * 1000))
-                filtros.append(
-                    f"[{indice_typing}:a]atrim=0:{segundos_para_ffmpeg(tempos['dur_digitando'])},"
-                    f"asetpts=PTS-STARTPTS,volume={intro.typing_volume},"
-                    f"adelay={type_delay_ms}:all=1[ty{idx}a]"
-                )
-                parts.append(f"[ty{idx}a]")
-
-                if intro.backspace_audio_enabled:
-                    back_delay_ms = int(round(tempos["inicio_backspace"] * 1000))
-                    filtros.append(
-                        f"[{indice_typing}:a]atrim=0:{segundos_para_ffmpeg(tempos['dur_backspace'])},"
-                        f"asetpts=PTS-STARTPTS,volume={intro.typing_volume},"
-                        f"adelay={back_delay_ms}:all=1[ty{idx}b]"
-                    )
-                    parts.append(f"[ty{idx}b]")
-
-            if parts:
-                filtros.append(f"{''.join(parts)}amix=inputs={len(parts)}:duration=longest:dropout_transition=0[typing]")
-                audio_labels.append("[typing]")
-
-        if len(audio_labels) == 1:
-            filtros.append(f"{audio_labels[0]}anull[aout]")
-        else:
-            filtros.append(f"{''.join(audio_labels)}amix=inputs={len(audio_labels)}:duration=first:dropout_transition=1[aout]")
-
-        arquivo_filtro = TEMP_DIR / "filter_preview_intro.txt"
-        arquivo_filtro.write_text(";\n".join(filtros), encoding="utf-8")
-
-        self.log("\nPrévia da intro usando música:\n")
-        self.log(f"Música: {primeira_musica.name}\n")
-        self.log(f"Duração da prévia: {segundos_para_legivel(duracao)}\n")
-
-        comando += ["-filter_complex_script", str(arquivo_filtro), "-t", str(duracao), "-map", "[vout]", "-map", "[aout]"]
-        if usar_gpu:
-            comando += ["-c:v", "h264_nvenc", "-preset", NVENC_PRESET, "-rc", "vbr", "-cq", NVENC_CQ, "-b:v", "0"]
-        else:
-            comando += ["-c:v", "libx264", "-preset", "medium", "-crf", "22"]
-        comando += ["-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-progress", "pipe:1", "-nostats", str(saida)]
-        self.rodar_ffmpeg_com_progresso(comando, duracao, 0.0, 1.0)
-        return saida
-
     def testar_nvenc(self) -> bool:
         if not self.config.use_gpu:
             return False
@@ -2141,24 +1700,6 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             return False
         self.log("\nNVENC encontrado: GPU ativada.\n")
         return True
-
-    def testar_filtro_subtitles(self):
-        self.stage("Verificando filtro subtitles")
-        comando = [str(FFMPEG), "-hide_banner", "-filters"]
-        resultado = subprocess.run(
-            comando,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-            encoding="utf-8",
-            errors="ignore",
-            **criar_kwargs_subprocess_controlado(),
-        )
-        saida = resultado.stdout + resultado.stderr
-        if "subtitles" not in saida:
-            self.log("\nAviso: o filtro subtitles/libass pode não estar disponível no FFmpeg.\n")
-        else:
-            self.log("\nFiltro subtitles/libass encontrado.\n")
 
 # ---------- Worker ----------
 
