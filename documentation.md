@@ -6,7 +6,7 @@ O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, 
 
 ## Versão do Script
 
-A versão atual do script é `8.0.5`.
+A versão atual do script é `8.0.6`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
@@ -77,9 +77,12 @@ Estes arquivos e pastas são estado local da máquina e não devem ser versionad
 - `_temp_audio_processado/`
 - `video_creator_config.json`
 - `erro_ffmpeg_log.txt`
+- `render_AAAA-MM-DD_HH-MM-SS/`
 - `build/`
 - `dist/`
 - pastas de saída de renderização
+
+Quando a pasta de saída fica vazia, o aplicativo cria automaticamente uma subpasta ao lado do script com o formato `render_AAAA-MM-DD_HH-MM-SS`. Isso evita sobrescrever vídeos gerados anteriormente.
 
 ## Preparação Para Executável
 

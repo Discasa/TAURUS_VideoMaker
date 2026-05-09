@@ -13,6 +13,6 @@ output/
 outputs/
 rendered/
 renders/
+render_*/
 build/
 dist/
-

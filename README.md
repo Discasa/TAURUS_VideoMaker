@@ -4,7 +4,7 @@ LoFi VideoMaker é um aplicativo de desktop para Windows que cria vídeos lo-fi 
 
 ## Versão Atual
 
-O script está na versão `8.0.5`.
+O script está na versão `8.0.6`.
 
 A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
 
@@ -43,6 +43,8 @@ ffmpeg/bin/ffprobe.exe
 ```
 
 Esses arquivos são rastreados com Git LFS porque são grandes. Depois de clonar o repositório, execute `git lfs pull` se os executáveis não estiverem presentes.
+
+Se a pasta de saída ficar vazia na interface, o vídeo será salvo automaticamente ao lado do script em uma subpasta `render_AAAA-MM-DD_HH-MM-SS`.
 
 ## Estrutura
 

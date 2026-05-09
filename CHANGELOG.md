@@ -1,5 +1,14 @@
 # Histórico de Mudanças
 
+## 8.0.6 - 2026-05-09
+
+- Alinhados os campos de caminho do passo 1 com largura consistente.
+- Reposicionados o slider de volume e o botão de limpar som de fundo como controles secundários à direita do som de fundo.
+- Refinado o slider de volume para usar o mesmo azul dos toggles, com bolinha circular menor.
+- Removido o botão "Usar pasta do script".
+- Alterado o padrão de saída vazia para criar uma subpasta `render_AAAA-MM-DD_HH-MM-SS` ao lado do script.
+- Ajustado "Abrir pasta de saída" para abrir a pasta do último vídeo gerado quando a saída automática estiver em uso.
+
 ## 8.0.5 - 2026-05-09
 
 - Refeito o visual do slider de volume do som de fundo em estilo pílula.

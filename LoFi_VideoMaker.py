@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.5.
+Versão 8.0.6.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.5"
+APP_VERSION = "8.0.6"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -677,6 +677,11 @@ def gerar_nome_video(prefixo: str = "video_final") -> str:
     data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     prefixo = re.sub(r"[^A-Za-z0-9_\-]+", "_", prefixo or "video_final").strip("_") or "video_final"
     return f"{prefixo}_{data_hora}.mp4"
+
+
+def gerar_pasta_saida_padrao() -> Path:
+    data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return SCRIPT_DIR / f"render_{data_hora}"
 
 
 # ==========================
@@ -2437,11 +2442,12 @@ class PathPicker(QWidget):
 
         self.label = QLabel(label)
         self.label.setObjectName("FieldLabel")
-        self.label.setMinimumWidth(118)
+        self.label.setFixedWidth(150)
         self.line = QLineEdit()
         self.line.setPlaceholderText("Nenhum caminho escolhido")
         self.line.setReadOnly(True)
         self.line.setMinimumHeight(24)
+        self.line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.button = PillButton("Escolher", "normal")
         self.button.setFixedWidth(76)
         self.button.clicked.connect(self.escolher)
@@ -3500,30 +3506,32 @@ QProgressBar::chunk {
     border-radius: 8px;
 }
 QSlider {
-    min-height: 28px;
+    min-height: 20px;
+    max-height: 20px;
 }
 QSlider::groove:horizontal {
-    background: #272B31;
-    border: 1px solid #56606B;
-    border-radius: 9px;
-    height: 18px;
+    background: #1E2023;
+    border: 1px solid #4A4D52;
+    border-radius: 5px;
+    height: 10px;
 }
 QSlider::sub-page:horizontal {
-    background: #1E88FF;
-    border: 1px solid #61AEFF;
-    border-radius: 9px;
+    background: #5EA0FF;
+    border: 1px solid #5EA0FF;
+    border-radius: 5px;
 }
 QSlider::add-page:horizontal {
-    background: #272B31;
-    border: 1px solid #56606B;
-    border-radius: 9px;
+    background: #1E2023;
+    border: 1px solid #4A4D52;
+    border-radius: 5px;
 }
 QSlider::handle:horizontal {
-    background: #1E88FF;
-    border: 2px solid #BFDFFF;
-    border-radius: 12px;
-    width: 24px;
-    margin: -4px 0;
+    background: #5EA0FF;
+    border: 1px solid #DDEBFF;
+    border-radius: 8px;
+    width: 16px;
+    height: 16px;
+    margin: -3px 0;
 }
 QScrollArea {
     border: none;
@@ -3669,14 +3677,13 @@ class MainWindow(QWidget):
             "file",
             "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)",
         )
-        self.output_picker = PathPicker("Pasta de saída — vazio usa a pasta do script", "folder")
+        self.output_picker = PathPicker("Pasta de saída", "folder")
+        self.output_picker.line.setPlaceholderText("Automática: render_AAAA-MM-DD_HH-MM-SS")
 
         clear_bg = PillButton("Limpar som de fundo", "normal")
         clear_bg.clicked.connect(lambda: self.bg_audio_picker.set_path(None))
-        clear_out = PillButton("Usar pasta do script", "normal")
-        clear_out.clicked.connect(lambda: self.output_picker.set_path(None))
 
-        self.bg_volume_title = QLabel("Volume do som de fundo")
+        self.bg_volume_title = QLabel("Volume")
         self.bg_volume_title.setObjectName("FieldLabel")
         self.bg_volume = QSlider(Qt.Horizontal)
         self.bg_volume.setRange(0, 20)
@@ -3685,26 +3692,26 @@ class MainWindow(QWidget):
         self.bg_volume.setTickPosition(QSlider.NoTicks)
         self.bg_volume.setTickInterval(1)
         self.bg_volume.setValue(3)
-        self.bg_volume.setMinimumWidth(160)
+        self.bg_volume.setFixedWidth(170)
         self.bg_volume_value = QLabel("30%")
         self.bg_volume_value.setObjectName("FieldLabel")
-        self.bg_volume_value.setMinimumWidth(44)
+        self.bg_volume_value.setFixedWidth(38)
         self.bg_volume_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
         volume_row = QHBoxLayout()
         volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.setSpacing(8)
+        volume_row.addStretch(1)
         volume_row.addWidget(self.bg_volume_title)
-        volume_row.addWidget(self.bg_volume, 1)
+        volume_row.addWidget(self.bg_volume)
         volume_row.addWidget(self.bg_volume_value)
+        volume_row.addWidget(clear_bg)
 
         grid_files.addWidget(self.video_picker, 0, 0, 1, 2)
         grid_files.addWidget(self.music_folder_picker, 1, 0, 1, 2)
         grid_files.addWidget(self.bg_audio_picker, 2, 0, 1, 2)
         grid_files.addLayout(volume_row, 3, 0, 1, 2)
-        grid_files.addWidget(clear_bg, 4, 0, alignment=Qt.AlignLeft)
-        grid_files.addWidget(self.output_picker, 5, 0, 1, 2)
-        grid_files.addWidget(clear_out, 6, 0, alignment=Qt.AlignLeft)
+        grid_files.addWidget(self.output_picker, 4, 0, 1, 2)
         grid_files.setColumnStretch(0, 1)
         card_arquivos.addLayout(grid_files)
         card_arquivos.setMinimumHeight(285)
@@ -4097,7 +4104,7 @@ class MainWindow(QWidget):
         video = self.video_picker.path()
         music_folder = self.music_folder_picker.path()
         bg_audio = self.bg_audio_picker.path()
-        output = self.output_picker.path() or SCRIPT_DIR
+        output = self.output_picker.path() or gerar_pasta_saida_padrao()
 
         if video is None:
             raise ErroRender("Escolha o vídeo ou GIF base.")
@@ -4315,7 +4322,11 @@ class MainWindow(QWidget):
                 msg.exec()
 
     def abrir_pasta_saida(self):
-        pasta = self.output_picker.path() or SCRIPT_DIR
+        pasta = self.output_picker.path()
+        if pasta is None and self.ultimo_video and self.ultimo_video.exists():
+            pasta = self.ultimo_video.parent
+        if pasta is None:
+            pasta = SCRIPT_DIR
         try:
             pasta.mkdir(parents=True, exist_ok=True)
             if os.name == "nt":
