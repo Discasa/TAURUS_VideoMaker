@@ -7,6 +7,7 @@ A lógica de renderização, FFmpeg e persistência ficam em engine.py.
 """
 
 import os
+import json
 import sys
 from dataclasses import asdict
 from pathlib import Path
@@ -374,7 +375,7 @@ def registrar_fontes_do_sistema():
 
     _FONTES_DO_SISTEMA_REGISTRADAS = True
 
-def criar_combo_fontes() -> QComboBox:
+def criar_combo_fontes(default_family: str = "Georgia") -> QComboBox:
     registrar_fontes_do_sistema()
     combo = QComboBox()
     combo.setMaxVisibleItems(12)
@@ -387,7 +388,9 @@ def criar_combo_fontes() -> QComboBox:
         fontes = ["Segoe UI", "Arial", "Georgia"]
     combo.addItems(fontes)
 
-    indice = combo.findText("Segoe UI")
+    indice = combo.findText(default_family)
+    if indice < 0:
+        indice = combo.findText("Segoe UI")
     if indice < 0:
         indice = combo.findText("Arial")
     combo.setCurrentIndex(max(0, indice))
@@ -476,7 +479,7 @@ class PageTitles(QWidget):
 
         self.mw.font_titles = criar_combo_fontes()
         self.mw.font_titles_size = QSpinBox(); self.mw.font_titles_size.setRange(8,160)
-        self.mw.font_titles_color = QLineEdit()
+        self.mw.font_titles_color = QLineEdit("#FFFFFF")
         self.mw.font_titles_color.textChanged.connect(lambda: atualizar_estilo_campo_cor(self.mw.font_titles_color))
         atualizar_estilo_campo_cor(self.mw.font_titles_color)
         btn_color = ModernButton("Cor")
@@ -560,7 +563,17 @@ class PageIntro(QWidget):
     def __init__(self, main_win):
         super().__init__()
         self.mw = main_win
-        layout = QVBoxLayout(self)
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        root_layout.addWidget(scroll)
+
+        content = QWidget()
+        scroll.setWidget(content)
+        layout = QVBoxLayout(content)
 
         lbl = QLabel("🎬 Frases de Introdução")
         lbl.setObjectName("PageTitle")
@@ -577,10 +590,23 @@ class PageIntro(QWidget):
         btn_row = QHBoxLayout()
         btn_add = ModernButton("Adicionar Frase")
         btn_rem = ModernButton("Remover")
+        btn_clear = ModernButton("Limpar Frases")
+        btn_sample = ModernButton("Exemplo Lo-fi")
+        btn_save_preset = ModernButton("Salvar Preset")
+        btn_load_preset = ModernButton("Carregar Preset")
         btn_add.clicked.connect(lambda: self._add_row("0.0", "4.0", "Nova frase..."))
         btn_rem.clicked.connect(self._rem_row)
-        btn_row.addWidget(btn_add); btn_row.addWidget(btn_rem); btn_row.addStretch()
+        btn_clear.clicked.connect(lambda: self.mw.intro_table.setRowCount(0))
+        btn_sample.clicked.connect(self._sample_rows)
+        btn_row.addWidget(btn_add); btn_row.addWidget(btn_rem); btn_row.addWidget(btn_clear); btn_row.addWidget(btn_sample); btn_row.addStretch()
         layout.addLayout(btn_row)
+        preset_row = QHBoxLayout()
+        btn_save_preset.clicked.connect(self._save_preset)
+        btn_load_preset.clicked.connect(self._load_preset)
+        preset_row.addWidget(btn_save_preset)
+        preset_row.addWidget(btn_load_preset)
+        preset_row.addStretch()
+        layout.addLayout(preset_row)
 
         grp = QGroupBox("Configurações da Intro")
         fl = QFormLayout(grp)
@@ -588,14 +614,71 @@ class PageIntro(QWidget):
         self.mw.intro_eff = QComboBox()
         self.mw.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
         self.mw.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação (opcional)")
+        self.mw.intro_typing_volume = QDoubleSpinBox(); self.mw.intro_typing_volume.setRange(0, 1); self.mw.intro_typing_volume.setSingleStep(0.05); self.mw.intro_typing_volume.setValue(0.30)
+        self.mw.intro_typing_cps = QDoubleSpinBox(); self.mw.intro_typing_cps.setRange(1, 120); self.mw.intro_typing_cps.setValue(18.0); self.mw.intro_typing_cps.setSuffix(" car/s")
+        self.mw.intro_backspace_cps = QDoubleSpinBox(); self.mw.intro_backspace_cps.setRange(1, 120); self.mw.intro_backspace_cps.setValue(22.0); self.mw.intro_backspace_cps.setSuffix(" car/s")
+        self.mw.intro_show_cursor = ToggleSwitch("Cursor piscando")
+        self.mw.intro_show_cursor.setChecked(True)
+        self.mw.intro_backspace_audio = ToggleSwitch("Som no backspace")
+        self.mw.intro_backspace_audio.setChecked(True)
         self.mw.intro_delay = QDoubleSpinBox(); self.mw.intro_delay.setRange(0, 120)
         self.mw.intro_delay.setSuffix(" s")
         self.mw.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar. Use 0 para tocar junto com a intro.")
 
         fl.addRow("Efeito:", self.mw.intro_eff)
+        fl.addRow("Vel. digitação:", self.mw.intro_typing_cps)
+        fl.addRow("Vel. backspace:", self.mw.intro_backspace_cps)
+        fl.addRow("", self.mw.intro_show_cursor)
+        fl.addRow("", self.mw.intro_backspace_audio)
         fl.addRow("Som (Teclado):", self.mw.intro_audio)
+        fl.addRow("Volume digitação:", self.mw.intro_typing_volume)
         fl.addRow("Música começa após:", self.mw.intro_delay)
         layout.addWidget(grp)
+
+        grp_text = QGroupBox("Texto da Intro")
+        fl_text = QFormLayout(grp_text)
+        self.mw.intro_font = criar_combo_fontes()
+        self.mw.intro_font_size = QSpinBox(); self.mw.intro_font_size.setRange(8, 180); self.mw.intro_font_size.setValue(48)
+        self.mw.intro_font_weight = QSpinBox(); self.mw.intro_font_weight.setRange(100, 900); self.mw.intro_font_weight.setSingleStep(50); self.mw.intro_font_weight.setValue(700)
+        self.mw.intro_color = QLineEdit("#FFFFFF")
+        self.mw.intro_color.textChanged.connect(lambda: atualizar_estilo_campo_cor(self.mw.intro_color))
+        atualizar_estilo_campo_cor(self.mw.intro_color)
+        btn_intro_color = ModernButton("Cor")
+        btn_intro_color.clicked.connect(lambda: self.pick_color(self.mw.intro_color))
+        intro_color_row = QHBoxLayout()
+        intro_color_row.addWidget(self.mw.intro_color)
+        intro_color_row.addWidget(btn_intro_color)
+        self.mw.intro_opacity = QDoubleSpinBox(); self.mw.intro_opacity.setRange(0.05, 1.0); self.mw.intro_opacity.setSingleStep(0.05); self.mw.intro_opacity.setValue(0.92)
+        self.mw.intro_pos = QComboBox(); popular_combo_posicoes(self.mw.intro_pos, "inferior_esquerda")
+        self.mw.intro_mx = QSpinBox(); self.mw.intro_mx.setRange(0, 800); self.mw.intro_mx.setValue(90)
+        self.mw.intro_my = QSpinBox(); self.mw.intro_my.setRange(0, 800); self.mw.intro_my.setValue(120)
+        intro_margins = criar_linha_margens(self.mw.intro_mx, self.mw.intro_my)
+        fl_text.addRow("Fonte:", self.mw.intro_font)
+        fl_text.addRow("Tamanho:", self.mw.intro_font_size)
+        fl_text.addRow("Peso:", self.mw.intro_font_weight)
+        fl_text.addRow("Cor:", intro_color_row)
+        fl_text.addRow("Opacidade:", self.mw.intro_opacity)
+        fl_text.addRow("Posição:", self.mw.intro_pos)
+        fl_text.addRow("Margem X/Y:", intro_margins)
+        layout.addWidget(grp_text)
+
+        grp_effect = QGroupBox("Sombra, Fundo e Aleatoriedade")
+        fl_effect = QFormLayout(grp_effect)
+        self.mw.intro_shadow_size = QDoubleSpinBox(); self.mw.intro_shadow_size.setRange(0, 10); self.mw.intro_shadow_size.setSingleStep(0.1); self.mw.intro_shadow_size.setValue(1.4)
+        self.mw.intro_shadow_opacity = QDoubleSpinBox(); self.mw.intro_shadow_opacity.setRange(0, 1); self.mw.intro_shadow_opacity.setSingleStep(0.05); self.mw.intro_shadow_opacity.setValue(0.65)
+        self.mw.intro_background_box = ToggleSwitch("Fundo preto transparente atrás do texto")
+        self.mw.intro_box_opacity = QDoubleSpinBox(); self.mw.intro_box_opacity.setRange(0, 1); self.mw.intro_box_opacity.setSingleStep(0.05); self.mw.intro_box_opacity.setValue(0.35)
+        self.mw.intro_randomize = ToggleSwitch("Frases aleatórias")
+        self.mw.intro_random_count = QSpinBox(); self.mw.intro_random_count.setRange(1, 99); self.mw.intro_random_count.setValue(3)
+        fl_effect.addRow("Grossura sombra:", self.mw.intro_shadow_size)
+        fl_effect.addRow("Opac. sombra:", self.mw.intro_shadow_opacity)
+        fl_effect.addRow("", self.mw.intro_background_box)
+        fl_effect.addRow("Opacidade fundo:", self.mw.intro_box_opacity)
+        fl_effect.addRow("", self.mw.intro_randomize)
+        fl_effect.addRow("Qtd. aleatórias:", self.mw.intro_random_count)
+        layout.addWidget(grp_effect)
+        layout.addStretch(1)
+        self._sample_rows()
         remove_spinbox_buttons(self)
 
     def _add_row(self, start, dur, txt):
@@ -607,6 +690,69 @@ class PageIntro(QWidget):
     def _rem_row(self):
         for idx in sorted({i.row() for i in self.mw.intro_table.selectedIndexes()}, reverse=True):
             self.mw.intro_table.removeRow(idx)
+
+    def _sample_rows(self):
+        self.mw.intro_table.setRowCount(0)
+        self._add_row("0.0", "4.0", "take a slow breath...")
+        self._add_row("5.0", "4.0", "let the rain carry the noise away.")
+        self._add_row("10.0", "5.0", "welcome to a quiet little journey.")
+
+    def pick_color(self, le):
+        c = QColorDialog.getColor(QColor(limpar_hex(le.text())), self)
+        if c.isValid():
+            le.setText(c.name().upper())
+
+    def aplicar_config(self, intro: IntroTextConfig):
+        self.mw.intro_enabled.setChecked(bool(intro.enabled))
+        idx = self.mw.intro_eff.findText(intro.effect)
+        if idx >= 0:
+            self.mw.intro_eff.setCurrentIndex(idx)
+        self.mw.intro_audio.set_path(intro.typing_audio_path)
+        self.mw.intro_typing_volume.setValue(float(intro.typing_volume))
+        self.mw.intro_typing_cps.setValue(float(intro.typing_cps))
+        self.mw.intro_backspace_cps.setValue(float(intro.backspace_cps))
+        self.mw.intro_backspace_audio.setChecked(bool(intro.backspace_audio_enabled))
+        self.mw.intro_show_cursor.setChecked(bool(intro.show_cursor))
+        self.mw.intro_delay.setValue(float(intro.delay_music_seconds))
+        idx = self.mw.intro_font.findText(str(intro.font_family))
+        if idx >= 0:
+            self.mw.intro_font.setCurrentIndex(idx)
+        self.mw.intro_font_size.setValue(int(intro.font_size))
+        self.mw.intro_font_weight.setValue(int(intro.font_weight))
+        self.mw.intro_color.setText(str(intro.color or "#FFFFFF"))
+        atualizar_estilo_campo_cor(self.mw.intro_color)
+        self.mw.intro_opacity.setValue(float(intro.opacity))
+        idx = self.mw.intro_pos.findData(intro.position)
+        if idx >= 0:
+            self.mw.intro_pos.setCurrentIndex(idx)
+        self.mw.intro_mx.setValue(int(intro.margin_x))
+        self.mw.intro_my.setValue(int(intro.margin_y))
+        self.mw.intro_shadow_opacity.setValue(float(intro.shadow_opacity))
+        self.mw.intro_shadow_size.setValue(float(intro.shadow_size))
+        self.mw.intro_background_box.setChecked(bool(intro.background_box))
+        self.mw.intro_box_opacity.setValue(float(intro.box_opacity))
+        self.mw.intro_randomize.setChecked(bool(intro.randomize_phrases))
+        self.mw.intro_random_count.setValue(int(intro.random_count))
+        self.mw.intro_table.setRowCount(0)
+        for frase in intro.phrases:
+            self._add_row(f"{frase.inicio:.2f}", f"{frase.duracao:.2f}", frase.texto)
+
+    def _save_preset(self):
+        caminho, _ = QFileDialog.getSaveFileName(self, "Salvar Preset da Intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
+        if not caminho:
+            return
+        intro = self.mw.get_config_obj(validar=False).intro
+        Path(caminho).write_text(json.dumps(intro_config_to_dict(intro), ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def _load_preset(self):
+        caminho, _ = QFileDialog.getOpenFileName(self, "Carregar Preset da Intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
+        if not caminho:
+            return
+        try:
+            dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
+            self.aplicar_config(intro_config_from_dict(dados))
+        except Exception as erro:
+            QMessageBox.warning(self, "Preset da Intro", f"Não foi possível carregar o preset:\n{erro}")
 
 class PageSettings(QWidget):
     def __init__(self, main_win):
@@ -827,7 +973,26 @@ class MainUI(QWidget):
             phrases=phrases,
             effect=self.intro_eff.currentText(),
             typing_audio_path=self.intro_audio.line.text(),
-            delay_music_seconds=self.intro_delay.value()
+            typing_volume=self.intro_typing_volume.value(),
+            typing_cps=self.intro_typing_cps.value(),
+            backspace_cps=self.intro_backspace_cps.value(),
+            backspace_audio_enabled=self.intro_backspace_audio.isChecked(),
+            show_cursor=self.intro_show_cursor.isChecked(),
+            randomize_phrases=self.intro_randomize.isChecked(),
+            random_count=self.intro_random_count.value(),
+            delay_music_seconds=self.intro_delay.value(),
+            font_family=self.intro_font.currentText(),
+            font_size=self.intro_font_size.value(),
+            font_weight=self.intro_font_weight.value(),
+            color=limpar_hex(self.intro_color.text()),
+            opacity=self.intro_opacity.value(),
+            position=self.intro_pos.currentData(),
+            margin_x=self.intro_mx.value(),
+            margin_y=self.intro_my.value(),
+            shadow_opacity=self.intro_shadow_opacity.value(),
+            shadow_size=self.intro_shadow_size.value(),
+            background_box=self.intro_background_box.isChecked(),
+            box_opacity=self.intro_box_opacity.value()
         )
 
         video_path = self.video_picker.path()
@@ -942,15 +1107,7 @@ class MainUI(QWidget):
         self.page_watermark.toggle_mode(self.wm_mode.currentText())
 
         intro = intro_config_from_dict(dados.get("intro", {}))
-        self.intro_enabled.setChecked(bool(intro.enabled))
-        idx = self.intro_eff.findText(intro.effect)
-        if idx >= 0:
-            self.intro_eff.setCurrentIndex(idx)
-        self.intro_audio.set_path(intro.typing_audio_path)
-        self.intro_delay.setValue(float(intro.delay_music_seconds))
-        self.intro_table.setRowCount(0)
-        for frase in intro.phrases:
-            self.page_intro._add_row(f"{frase.inicio:.2f}", f"{frase.duracao:.2f}", frase.texto)
+        self.page_intro.aplicar_config(intro)
 
         self._config_loading = False
 

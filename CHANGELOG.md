@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.14 - 2026-05-09
+
+- Restaurados na página Intro os controles avançados que já existiam no backend para frases iniciais.
+- Organizadas as opções da intro em grupos próprios para evitar mistura com Títulos, Watermark e Avançado.
+- Ligados os novos campos da intro ao salvamento e carregamento da configuração.
+- Restaurados os botões de salvar e carregar presets da intro.
+
 ## 8.0.13 - 2026-05-09
 
 - Substituído o seletor visual de fontes por uma lista compacta com nomes das fontes do sistema.
