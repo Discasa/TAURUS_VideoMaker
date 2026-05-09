@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.48 - 2026-05-09
+
+- Reduzida a altura visual da barra de progresso.
+
 ## 8.0.47 - 2026-05-09
 
 - Alinhado o controle de volume do preview com a borda real do vídeo.

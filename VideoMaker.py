@@ -239,13 +239,14 @@ QTabBar::tab:!selected {
 QProgressBar {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 10px;
-    min-height: 16px;
+    border-radius: 7px;
+    min-height: 10px;
+    max-height: 14px;
     text-align: center;
 }
 QProgressBar::chunk {
     background: #2F86FF;
-    border-radius: 9px;
+    border-radius: 6px;
 }
 QSlider {
     background: transparent;
@@ -1035,6 +1036,7 @@ class MainUI(QWidget):
         self.prog_bar.setRange(0, 100)
         self.prog_bar.setValue(0)
         self.prog_bar.setTextVisible(False)
+        self.prog_bar.setFixedHeight(14)
         transport_layout.addWidget(self.prog_bar)
 
         buttons = QHBoxLayout()
