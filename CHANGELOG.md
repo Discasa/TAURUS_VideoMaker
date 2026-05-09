@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.15 - 2026-05-09
+
+- Refeita a interface como editor em três colunas: fluxo de arquivos, preview central e ajustes em abas.
+- Removidas páginas com rolagem; opções densas foram divididas em abas internas, principalmente na Intro.
+- Adicionado preview em tempo real usando o primeiro frame da mídia visual e sobreposições de títulos, intro e marca d'água.
+- Padronizados botões, campos, seletores, toggles e espaçamentos com paleta azul noite, azul claro e cinza.
+
 ## 8.0.14 - 2026-05-09
 
 - Restaurados na página Intro os controles avançados que já existiam no backend para frases iniciais.

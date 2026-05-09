@@ -6,25 +6,31 @@ Interface PySide6 do LoFi VideoMaker.
 A lógica de renderização, FFmpeg e persistência ficam em engine.py.
 """
 
-import os
 import json
+import os
+import subprocess
 import sys
 from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 from engine import (
     APP_VERSION,
+    EXTENSOES_IMAGEM,
+    EXTENSOES_VIDEO,
+    FFMPEG,
+    SCRIPT_DIR,
     ErroRender,
     FonteTextoConfig,
     IntroFraseConfig,
     IntroTextConfig,
     NormalizacaoConfig,
     RenderConfig,
-    SCRIPT_DIR,
     WatermarkConfig,
     WorkerRender,
     caminho_ou_vazio,
     carregar_json_config,
+    criar_kwargs_subprocess_controlado,
     gerar_pasta_saida_padrao,
     intro_config_from_dict,
     intro_config_to_dict,
@@ -32,92 +38,106 @@ from engine import (
     popular_combo_posicoes,
     salvar_json_config,
 )
-# ==========================
-# UI PYSIDE6 MODERNA
-# ==========================
 
 try:
     from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer
-    from PySide6.QtGui import QColor, QCursor, QFontDatabase, QPainter, QTextCursor
+    from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPixmap, QTextCursor
     from PySide6.QtWidgets import (
-        QApplication, QAbstractSpinBox, QCheckBox, QColorDialog, QComboBox, QDoubleSpinBox,
-        QFileDialog, QFrame, QGridLayout, QHBoxLayout, QHeaderView, QLabel, QLineEdit,
-        QMessageBox, QProgressBar, QPushButton, QScrollArea, QSizePolicy, QSlider, QSpinBox, QTextEdit,
-        QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget, QStackedWidget, QListWidget, QListWidgetItem,
-        QGroupBox, QFormLayout
+        QApplication,
+        QAbstractSpinBox,
+        QCheckBox,
+        QColorDialog,
+        QComboBox,
+        QDoubleSpinBox,
+        QFileDialog,
+        QFrame,
+        QGridLayout,
+        QHBoxLayout,
+        QHeaderView,
+        QLabel,
+        QLineEdit,
+        QMessageBox,
+        QProgressBar,
+        QPushButton,
+        QSizePolicy,
+        QSlider,
+        QSpinBox,
+        QTabWidget,
+        QTableWidget,
+        QTableWidgetItem,
+        QTextEdit,
+        QVBoxLayout,
+        QWidget,
     )
 except ImportError:
     print("PySide6 não está instalado. Instale com: pip install PySide6")
     sys.exit(1)
 
-# ---------- Estilos ----------
-STYLE_DARK = """
+
+STYLE_PRIME = """
 * {
     font-family: "Segoe UI", "Helvetica Neue", sans-serif;
     font-size: 12px;
-    color: #E0E0E0;
+    color: #EAF2FF;
 }
-QMainWindow, QWidget#MainContent {
-    background-color: #1A1A1C;
+QWidget {
+    background: #0B111C;
 }
-QFrame#Sidebar {
-    background-color: #222325;
-    border-right: 1px solid #323438;
+QFrame#LeftPanel, QFrame#RightPanel {
+    background: #101826;
+    border: 1px solid #233047;
 }
-QFrame#ContentArea {
-    background-color: #1A1A1C;
+QFrame#CenterPanel {
+    background: #0B111C;
 }
-QFrame#Footer {
-    background-color: #222325;
-    border-top: 1px solid #323438;
+QFrame#Section, QFrame#Transport, QFrame#PreviewShell {
+    background: #131D2B;
+    border: 1px solid #26354D;
+    border-radius: 8px;
 }
-QGroupBox {
-    border: 1px solid #323438;
-    border-radius: 6px;
-    margin-top: 14px;
-    background-color: #1F2022;
+QLabel#Brand {
+    color: #F6FAFF;
+    font-size: 20px;
+    font-weight: 800;
 }
-QGroupBox::title {
-    subcontrol-origin: margin;
-    subcontrol-position: top left;
-    padding: 0 5px;
-    color: #8A929B;
-    font-weight: 600;
+QLabel#Subtle {
+    color: #8FA4C4;
+}
+QLabel#SectionTitle {
+    color: #DCEBFF;
+    font-size: 13px;
+    font-weight: 700;
+}
+QLabel#ColumnTitle {
+    color: #F6FAFF;
+    font-size: 16px;
+    font-weight: 800;
 }
 QLabel {
     background: transparent;
 }
-QLabel#PageTitle {
-    font-size: 18px;
-    font-weight: bold;
-    color: #FFFFFF;
-}
-QLabel#AppTitle {
-    font-size: 14px;
-    font-weight: bold;
-    color: #FFFFFF;
-}
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
-    background: #151516;
-    border: 1px solid #383A3F;
-    border-radius: 4px;
-    padding: 3px 6px;
-    min-height: 22px;
+    background: #0D1420;
+    border: 1px solid #31415C;
+    border-radius: 6px;
+    min-height: 30px;
+    padding: 4px 8px;
+    selection-background-color: #2F86FF;
 }
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus {
+QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus {
     border: 1px solid #5EA0FF;
-    background: #1B1D20;
+    background: #111B2B;
 }
 QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
     width: 0px;
     border: none;
 }
 QComboBox::drop-down {
-    border-left: 1px solid #383A3F;
-    width: 24px;
-    background: #202226;
-    border-top-right-radius: 4px;
-    border-bottom-right-radius: 4px;
+    width: 28px;
+    background: #16243A;
+    border-left: 1px solid #31415C;
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px;
 }
 QComboBox::down-arrow {
     image: none;
@@ -125,852 +145,1042 @@ QComboBox::down-arrow {
     height: 0px;
     border-left: 5px solid transparent;
     border-right: 5px solid transparent;
-    border-top: 6px solid #5EA0FF;
-    margin-right: 7px;
+    border-top: 6px solid #6FB1FF;
+    margin-right: 8px;
 }
-QComboBox::drop-down:hover {
-    background: #273040;
-}
-QListWidget#SidebarList {
-    background: transparent;
-    border: none;
+QComboBox QAbstractItemView {
+    background: #101826;
+    border: 1px solid #31415C;
+    selection-background-color: #2F86FF;
     outline: none;
 }
-QListWidget#SidebarList::item {
-    padding: 10px 14px;
-    border-radius: 6px;
-    margin: 2px 8px;
+QTabWidget::pane {
+    border: 1px solid #26354D;
+    border-radius: 8px;
+    background: #101826;
+    top: -1px;
 }
-QListWidget#SidebarList::item:hover {
-    background: #2D2F33;
+QTabBar::tab {
+    background: #111B2B;
+    color: #9FB4D2;
+    border: 1px solid #26354D;
+    border-bottom: none;
+    padding: 8px 8px;
+    min-width: 55px;
+    border-top-left-radius: 7px;
+    border-top-right-radius: 7px;
 }
-QListWidget#SidebarList::item:selected {
-    background: #364254;
-    color: #9EC1FF;
-    font-weight: bold;
+QTabBar::tab:selected {
+    background: #17263C;
+    color: #FFFFFF;
+    border-color: #4B7EC5;
 }
 QProgressBar {
-    background: #151516;
-    border: 1px solid #323438;
-    border-radius: 4px;
-    text-align: center;
-    color: #FFF;
-    font-weight: bold;
+    background: #0D1420;
+    border: 1px solid #31415C;
+    border-radius: 6px;
     min-height: 16px;
+    text-align: center;
 }
 QProgressBar::chunk {
-    background: #5EA0FF;
-    border-radius: 3px;
+    background: #2F86FF;
+    border-radius: 5px;
 }
 QSlider::groove:horizontal {
-    background: #151516;
-    border: 1px solid #323438;
-    height: 6px;
-    border-radius: 3px;
+    background: #0D1420;
+    border: 1px solid #31415C;
+    height: 7px;
+    border-radius: 4px;
 }
 QSlider::sub-page:horizontal {
-    background: #5EA0FF;
-    border-radius: 3px;
+    background: #2F86FF;
+    border-radius: 4px;
 }
 QSlider::handle:horizontal {
-    background: #FFF;
-    border: 1px solid #5EA0FF;
-    width: 14px;
-    height: 14px;
-    margin: -4px 0;
-    border-radius: 7px;
+    background: #A9D3FF;
+    border: 1px solid #6FB1FF;
+    width: 15px;
+    height: 15px;
+    margin: -5px 0;
+    border-radius: 8px;
 }
 QTableWidget {
-    background: #151516;
-    border: 1px solid #323438;
-    border-radius: 4px;
-    gridline-color: #2D2F33;
+    background: #0D1420;
+    border: 1px solid #31415C;
+    border-radius: 6px;
+    gridline-color: #26354D;
 }
 QHeaderView::section {
-    background: #1F2022;
-    padding: 4px;
+    background: #17263C;
     border: none;
-    border-bottom: 1px solid #323438;
-    font-weight: bold;
-}
-QScrollBar:vertical {
-    background: transparent;
-    width: 8px;
-}
-QScrollBar::handle:vertical {
-    background: #4A4D52;
-    border-radius: 4px;
+    border-bottom: 1px solid #31415C;
+    padding: 5px;
+    color: #CFE2FF;
+    font-weight: 700;
 }
 """
 
-# ---------- Componentes Reutilizáveis ----------
 
-class ModernButton(QPushButton):
-    def __init__(self, texto="", kind="normal", parent=None):
-        super().__init__(texto, parent)
+def section(title: str) -> tuple[QFrame, QVBoxLayout]:
+    frame = QFrame()
+    frame.setObjectName("Section")
+    layout = QVBoxLayout(frame)
+    layout.setContentsMargins(12, 10, 12, 12)
+    layout.setSpacing(8)
+    label = QLabel(title)
+    label.setObjectName("SectionTitle")
+    layout.addWidget(label)
+    return frame, layout
+
+
+def setup_form(form: QGridLayout):
+    form.setContentsMargins(0, 0, 0, 0)
+    form.setHorizontalSpacing(10)
+    form.setVerticalSpacing(8)
+    form.setColumnMinimumWidth(0, 112)
+    form.setColumnStretch(1, 1)
+
+
+def add_row(form: QGridLayout, row: int, label: str, widget: QWidget):
+    lbl = QLabel(label)
+    lbl.setObjectName("Subtle")
+    lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    form.addWidget(lbl, row, 0)
+    form.addWidget(widget, row, 1)
+
+
+def add_wide(form: QGridLayout, row: int, widget: QWidget):
+    form.addWidget(widget, row, 0, 1, 2)
+
+
+def set_input_width(widget: QWidget):
+    widget.setMinimumHeight(32)
+    widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+    if isinstance(widget, QComboBox):
+        widget.setMaxVisibleItems(12)
+        widget.setMinimumContentsLength(16)
+        widget.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
+        widget.view().setTextElideMode(Qt.ElideRight)
+
+
+class ActionButton(QPushButton):
+    def __init__(self, text: str, kind: str = "normal"):
+        super().__init__(text)
         self.kind = kind
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setMinimumHeight(26)
-        self.setSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
-        self._update_style()
+        self.setMinimumWidth(124)
+        self.setFixedHeight(34)
+        self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        self.refresh_style()
 
-    def _update_style(self):
-        if self.kind == "primary":
-            bg, hover, text = "#2563EB", "#3B82F6", "#FFFFFF"
-            border = "#1D4ED8"
-        elif self.kind == "danger":
-            bg, hover, text = "#991B1B", "#DC2626", "#FFFFFF"
-            border = "#7F1D1D"
-        else:
-            bg, hover, text = "#2D2F33", "#3A3D42", "#E0E0E0"
-            border = "#4A4D52"
-
+    def refresh_style(self):
+        palette = {
+            "normal": ("#18263A", "#213753", "#7EAFFF", "#31415C"),
+            "primary": ("#2F86FF", "#4B9AFF", "#FFFFFF", "#1F6FD9"),
+            "danger": ("#8A3A4A", "#A94C5F", "#FFFFFF", "#703040"),
+            "ghost": ("#111B2B", "#18263A", "#CFE2FF", "#31415C"),
+        }
+        bg, hover, text, border = palette.get(self.kind, palette["normal"])
         self.setStyleSheet(f"""
             QPushButton {{
-                background-color: {bg};
+                background: {bg};
                 color: {text};
                 border: 1px solid {border};
-                border-radius: 4px;
-                padding: 4px 12px;
-                font-weight: 500;
+                border-radius: 7px;
+                padding: 5px 12px;
+                font-weight: 700;
             }}
-            QPushButton:hover {{ background-color: {hover}; }}
-            QPushButton:pressed {{ background-color: {border}; }}
-            QPushButton:disabled {{ background-color: #1A1A1C; color: #555; border: 1px solid #333; }}
+            QPushButton:hover {{ background: {hover}; }}
+            QPushButton:pressed {{ background: {border}; }}
+            QPushButton:disabled {{ background: #101826; color: #5F6E84; border-color: #243148; }}
         """)
 
+
 class ToggleSwitch(QCheckBox):
-    # Uma versão mais enxuta do seu toggle original
-    TRACK_W, TRACK_H, KNOB_D, HEIGHT = 36, 18, 14, 24
-    GAP_TEXT = 8
-    def __init__(self, texto="", parent=None):
-        super().__init__(texto, parent)
+    TRACK_W = 40
+    TRACK_H = 20
+    KNOB_D = 16
+
+    def __init__(self, text: str = ""):
+        super().__init__(text)
         self._offset = 1.0 if self.isChecked() else 0.0
+        self.setCursor(QCursor(Qt.PointingHandCursor))
         self._anim = QPropertyAnimation(self, b"offset", self)
         self._anim.setDuration(120)
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setFixedHeight(self.HEIGHT)
-        self.stateChanged.connect(self._animar)
+        self.stateChanged.connect(self._animate)
 
     def sizeHint(self):
-        w = self.fontMetrics().horizontalAdvance(self.text()) if self.text() else 0
-        return QSize(self.TRACK_W + (self.GAP_TEXT + w if w else 0), self.HEIGHT)
+        label_w = self.fontMetrics().horizontalAdvance(self.text()) if self.text() else 0
+        return QSize(self.TRACK_W + (10 + label_w if label_w else 0), 26)
 
-    def getOffset(self): return self._offset
-    def setOffset(self, val): self._offset = val; self.update()
-    offset = Property(float, getOffset, setOffset)
+    def get_offset(self):
+        return self._offset
 
-    def _animar(self, *args):
+    def set_offset(self, value):
+        self._offset = value
+        self.update()
+
+    offset = Property(float, get_offset, set_offset)
+
+    def _animate(self):
         self._anim.stop()
+        self._anim.setStartValue(self._offset)
         self._anim.setEndValue(1.0 if self.isChecked() else 0.0)
         self._anim.start()
 
     def paintEvent(self, event):
-        p = QPainter(self)
-        p.setRenderHint(QPainter.Antialiasing)
-        ty = (self.HEIGHT - self.TRACK_H) / 2
-        track = QRectF(0, ty, self.TRACK_W, self.TRACK_H)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        track_y = (self.height() - self.TRACK_H) / 2
+        track = QRectF(0, track_y, self.TRACK_W, self.TRACK_H)
+        painter.setPen(Qt.NoPen)
+        painter.setBrush(QColor("#2F86FF") if self.isChecked() else QColor("#3A4658"))
+        painter.drawRoundedRect(track, self.TRACK_H / 2, self.TRACK_H / 2)
 
-        color = QColor("#2563EB") if self.isChecked() else QColor("#4A4D52")
-        p.setBrush(color)
-        p.setPen(Qt.NoPen)
-        p.drawRoundedRect(track, self.TRACK_H/2, self.TRACK_H/2)
-
-        kx = 2 + self._offset * (self.TRACK_W - self.KNOB_D - 4)
-        ky = ty + (self.TRACK_H - self.KNOB_D) / 2
-        p.setBrush(QColor("#FFFFFF"))
-        p.drawEllipse(QRectF(kx, ky, self.KNOB_D, self.KNOB_D))
+        knob_x = 2 + self._offset * (self.TRACK_W - self.KNOB_D - 4)
+        knob_y = track_y + 2
+        painter.setBrush(QColor("#EAF2FF"))
+        painter.drawEllipse(QRectF(knob_x, knob_y, self.KNOB_D, self.KNOB_D))
 
         if self.text():
-            p.setPen(QColor("#E0E0E0") if self.isEnabled() else QColor("#777"))
-            p.setFont(self.font())
-            p.drawText(self.rect().adjusted(self.TRACK_W + self.GAP_TEXT, 0, 0, 0), Qt.AlignVCenter | Qt.AlignLeft, self.text())
+            painter.setPen(QColor("#DCEBFF"))
+            painter.drawText(
+                self.rect().adjusted(self.TRACK_W + 10, 0, 0, 0),
+                Qt.AlignVCenter | Qt.AlignLeft,
+                self.text(),
+            )
+
+
+class ColorEdit(QLineEdit):
+    def __init__(self, value: str = "#FFFFFF"):
+        super().__init__(value)
+        self.textChanged.connect(self.refresh_color)
+        self.refresh_color()
+
+    def refresh_color(self):
+        color = limpar_hex(self.text())
+        if not QColor(color).isValid():
+            color = "#DCEBFF"
+        self.setStyleSheet(f"""
+            QLineEdit {{
+                background: #0D1420;
+                border: 1px solid #31415C;
+                border-radius: 6px;
+                min-height: 30px;
+                padding: 4px 8px;
+                color: {color};
+                font-weight: 800;
+            }}
+            QLineEdit:focus {{
+                border: 1px solid #5EA0FF;
+                background: #111B2B;
+            }}
+        """)
+
 
 class PathPicker(QWidget):
-    def __init__(self, mode: str, filter_text: str = "*.*", placeholder: str = ""):
+    def __init__(self, mode: str, filter_text: str = "Todos (*.*)", placeholder: str = ""):
         super().__init__()
         self.mode = mode
         self.filter_text = filter_text
         layout = QHBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
         self.line = QLineEdit()
         self.line.setPlaceholderText(placeholder)
-        self.btn = ModernButton("Procurar")
-        self.btn.clicked.connect(self.escolher)
-        layout.addWidget(self.line)
-        layout.addWidget(self.btn)
+        self.button = ActionButton("Escolher", "ghost")
+        self.button.setFixedWidth(86)
+        self.button.clicked.connect(self.choose)
+        layout.addWidget(self.line, 1)
+        layout.addWidget(self.button)
 
-    def escolher(self):
-        if self.mode == "file": path, _ = QFileDialog.getOpenFileName(self, "Escolher Arquivo", str(SCRIPT_DIR), self.filter_text)
-        else: path = QFileDialog.getExistingDirectory(self, "Escolher Pasta", str(SCRIPT_DIR))
-        if path: self.line.setText(path)
+    def choose(self):
+        if self.mode == "folder":
+            path = QFileDialog.getExistingDirectory(self, "Escolher pasta", str(SCRIPT_DIR))
+        else:
+            path, _ = QFileDialog.getOpenFileName(self, "Escolher arquivo", str(SCRIPT_DIR), self.filter_text)
+        if path:
+            self.line.setText(path)
 
     def path(self) -> Path | None:
-        t = self.line.text().strip()
-        return Path(t) if t else None
+        text = self.line.text().strip()
+        return Path(text) if text else None
 
     def set_path(self, path):
         self.line.setText(str(path) if path else "")
 
-def remove_spinbox_buttons(widget: QWidget):
-    for spin in widget.findChildren(QAbstractSpinBox):
+
+_FONTES_REGISTRADAS = False
+
+
+def registrar_fontes():
+    global _FONTES_REGISTRADAS
+    if _FONTES_REGISTRADAS:
+        return
+    if QFontDatabase.families():
+        _FONTES_REGISTRADAS = True
+        return
+    pasta = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts" if os.name == "nt" else Path("/usr/share/fonts")
+    if pasta.exists():
+        for padrao in ("*.ttf", "*.otf"):
+            for fonte in pasta.rglob(padrao):
+                QFontDatabase.addApplicationFont(str(fonte))
+    _FONTES_REGISTRADAS = True
+
+
+def combo_fontes(default_family: str = "Georgia") -> QComboBox:
+    registrar_fontes()
+    combo = QComboBox()
+    set_input_width(combo)
+    fonts = sorted(set(QFontDatabase.families()), key=str.casefold) or ["Georgia", "Segoe UI", "Arial"]
+    combo.addItems(fonts)
+    index = combo.findText(default_family)
+    if index < 0:
+        index = combo.findText("Segoe UI")
+    combo.setCurrentIndex(max(0, index))
+    return combo
+
+
+def combo_posicao(default: str) -> QComboBox:
+    combo = QComboBox()
+    popular_combo_posicoes(combo, default)
+    set_input_width(combo)
+    return combo
+
+
+def margins_widget(x_spin: QSpinBox, y_spin: QSpinBox) -> QWidget:
+    box = QWidget()
+    layout = QHBoxLayout(box)
+    layout.setContentsMargins(0, 0, 0, 0)
+    layout.setSpacing(6)
+    for spin in (x_spin, y_spin):
+        spin.setMinimumWidth(80)
+        spin.setMaximumWidth(90)
+    layout.addWidget(QLabel("X"))
+    layout.addWidget(x_spin)
+    layout.addWidget(QLabel("Y"))
+    layout.addWidget(y_spin)
+    layout.addStretch(1)
+    return box
+
+
+def remove_spin_buttons(root: QWidget):
+    for spin in root.findChildren(QAbstractSpinBox):
         spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
         spin.setAlignment(Qt.AlignLeft)
 
-def criar_linha_margens(spin_x: QSpinBox, spin_y: QSpinBox) -> QWidget:
-    container = QWidget()
-    layout = QHBoxLayout(container)
-    layout.setContentsMargins(0, 0, 0, 0)
-    layout.setSpacing(8)
 
-    for spin in (spin_x, spin_y):
-        spin.setMinimumWidth(120)
-        spin.setMaximumWidth(170)
-        spin.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-    label_x = QLabel("X:")
-    label_y = QLabel("Y:")
-    label_x.setFixedWidth(18)
-    label_y.setFixedWidth(18)
-
-    layout.addWidget(label_x)
-    layout.addWidget(spin_x)
-    layout.addSpacing(18)
-    layout.addWidget(label_y)
-    layout.addWidget(spin_y)
-    layout.addStretch(1)
-    return container
-
-_FONTES_DO_SISTEMA_REGISTRADAS = False
-
-def registrar_fontes_do_sistema():
-    global _FONTES_DO_SISTEMA_REGISTRADAS
-    if _FONTES_DO_SISTEMA_REGISTRADAS:
-        return
-
-    if QFontDatabase.families():
-        _FONTES_DO_SISTEMA_REGISTRADAS = True
-        return
-
-    pastas = []
-    if os.name == "nt":
-        pastas.append(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts")
-    else:
-        pastas.extend([Path("/usr/share/fonts"), Path("/usr/local/share/fonts"), Path.home() / ".fonts"])
-
-    vistos = set()
-    for pasta in pastas:
-        if not pasta.exists():
-            continue
-        for padrao in ("*.ttf", "*.otf"):
-            for fonte in pasta.rglob(padrao):
-                chave = fonte.resolve()
-                if chave in vistos:
-                    continue
-                vistos.add(chave)
-                try:
-                    QFontDatabase.addApplicationFont(str(fonte))
-                except Exception:
-                    pass
-
-    _FONTES_DO_SISTEMA_REGISTRADAS = True
-
-def criar_combo_fontes(default_family: str = "Georgia") -> QComboBox:
-    registrar_fontes_do_sistema()
-    combo = QComboBox()
-    combo.setMaxVisibleItems(12)
-    combo.setMinimumContentsLength(22)
-    combo.setSizeAdjustPolicy(QComboBox.AdjustToMinimumContentsLengthWithIcon)
-    combo.view().setTextElideMode(Qt.ElideRight)
-
-    fontes = sorted(set(QFontDatabase.families()), key=str.casefold)
-    if not fontes:
-        fontes = ["Segoe UI", "Arial", "Georgia"]
-    combo.addItems(fontes)
-
-    indice = combo.findText(default_family)
-    if indice < 0:
-        indice = combo.findText("Segoe UI")
-    if indice < 0:
-        indice = combo.findText("Arial")
-    combo.setCurrentIndex(max(0, indice))
-    combo.setToolTip("Lista de fontes instaladas no sistema.")
-    return combo
-
-def atualizar_estilo_campo_cor(campo: QLineEdit):
-    cor = limpar_hex(campo.text())
-    qcor = QColor(cor)
-    if not qcor.isValid():
-        cor = "#E0E0E0"
-
-    campo.setStyleSheet(f"""
-        QLineEdit {{
-            background: #151516;
-            border: 1px solid #383A3F;
-            border-radius: 4px;
-            padding: 3px 6px;
-            min-height: 22px;
-            color: {cor};
-            font-weight: 700;
-        }}
-        QLineEdit:focus {{
-            border: 1px solid #5EA0FF;
-            background: #1B1D20;
-        }}
-    """)
-
-# ---------- Páginas da Sidebar ----------
-
-class PageMedia(QWidget):
-    def __init__(self, main_win):
+class PreviewCanvas(QWidget):
+    def __init__(self):
         super().__init__()
-        self.mw = main_win
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+        self.base_pixmap: QPixmap | None = None
+        self.config: RenderConfig | None = None
+        self.setMinimumSize(520, 300)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-        lbl = QLabel("📁 Mídias e Saída")
-        lbl.setObjectName("PageTitle")
-        layout.addWidget(lbl)
+    def set_preview(self, pixmap: QPixmap | None, config: RenderConfig | None):
+        self.base_pixmap = pixmap
+        self.config = config
+        self.update()
 
-        grp = QGroupBox("Arquivos Base")
-        fl = QFormLayout(grp)
-        self.mw.video_picker = PathPicker("file", "Vídeos/GIF (*.mp4 *.mov *.mkv *.avi *.webm *.gif);;Todos (*.*)", "Vídeo/GIF de fundo")
-        self.mw.music_picker = PathPicker("folder", placeholder="Pasta com as músicas (arquivos de áudio)")
-        self.mw.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Áudio contínuo (ex: chuva)")
-        fl.addRow("Vídeo Lo-fi:", self.mw.video_picker)
-        fl.addRow("Músicas:", self.mw.music_picker)
-        fl.addRow("Som Ambiente:", self.mw.bg_picker)
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        painter.fillRect(self.rect(), QColor("#07111F"))
 
-        # Volume do som ambiente
-        vol_layout = QHBoxLayout()
-        self.mw.bg_vol_slider = QSlider(Qt.Horizontal)
-        self.mw.bg_vol_slider.setRange(0, 20)
-        self.mw.bg_vol_slider.setValue(3)
-        self.mw.bg_vol_lbl = QLabel("30%")
-        self.mw.bg_vol_slider.valueChanged.connect(lambda v: self.mw.bg_vol_lbl.setText(f"{v*10}%"))
-        vol_layout.addWidget(self.mw.bg_vol_slider)
-        vol_layout.addWidget(self.mw.bg_vol_lbl)
-        fl.addRow("Vol. Ambiente:", vol_layout)
-        layout.addWidget(grp)
+        frame = self._video_rect()
+        painter.setPen(QColor("#26354D"))
+        painter.setBrush(QColor("#0D1420"))
+        painter.drawRoundedRect(frame, 10, 10)
 
-        grp_out = QGroupBox("Exportação")
-        fl_out = QFormLayout(grp_out)
-        self.mw.out_picker = PathPicker("folder", placeholder="Padrão: render_DATA_HORA na pasta do script")
-        fl_out.addRow("Salvar em:", self.mw.out_picker)
+        if self.base_pixmap and not self.base_pixmap.isNull():
+            scaled = self.base_pixmap.scaled(frame.size().toSize(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation)
+            source = QRectF(
+                (scaled.width() - frame.width()) / 2,
+                (scaled.height() - frame.height()) / 2,
+                frame.width(),
+                frame.height(),
+            )
+            painter.drawPixmap(frame, scaled, source)
+        else:
+            placeholder_font = QFont("Segoe UI")
+            placeholder_font.setPixelSize(15)
+            painter.setFont(placeholder_font)
+            painter.setPen(QColor("#8FA4C4"))
+            painter.drawText(frame.toRect(), Qt.AlignCenter, "Selecione um vídeo, GIF ou imagem para o preview")
 
-        btn_open = ModernButton("Abrir pasta de saída")
-        btn_open.clicked.connect(self.mw.abrir_pasta_saida)
-        fl_out.addRow("", btn_open)
-        layout.addWidget(grp_out)
+        if self.config:
+            self._draw_title(painter, frame)
+            self._draw_intro(painter, frame)
+            self._draw_watermark(painter, frame)
 
-class PageTitles(QWidget):
-    def __init__(self, main_win):
-        super().__init__()
-        self.mw = main_win
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+        painter.setPen(QColor("#5EA0FF"))
+        painter.drawRoundedRect(frame, 10, 10)
 
-        lbl = QLabel("✍️ Títulos das Músicas")
-        lbl.setObjectName("PageTitle")
-        layout.addWidget(lbl)
+    def _video_rect(self) -> QRectF:
+        area = self.rect().adjusted(16, 16, -16, -16)
+        ratio = 16 / 9
+        width = area.width()
+        height = int(width / ratio)
+        if height > area.height():
+            height = area.height()
+            width = int(height * ratio)
+        x = area.x() + (area.width() - width) / 2
+        y = area.y() + (area.height() - height) / 2
+        return QRectF(x, y, width, height)
 
-        grp = QGroupBox("Tipografia e Posição")
-        fl = QFormLayout(grp)
+    def _positioned_rect(self, frame: QRectF, size: QSize, position: str, margin_x: int, margin_y: int) -> QRectF:
+        w = size.width()
+        h = size.height()
+        if "esquerda" in position:
+            x = frame.left() + margin_x
+        elif "direita" in position:
+            x = frame.right() - margin_x - w
+        else:
+            x = frame.left() + (frame.width() - w) / 2
 
-        self.mw.font_titles = criar_combo_fontes()
-        self.mw.font_titles_size = QSpinBox(); self.mw.font_titles_size.setRange(8,160)
-        self.mw.font_titles_color = QLineEdit("#FFFFFF")
-        self.mw.font_titles_color.textChanged.connect(lambda: atualizar_estilo_campo_cor(self.mw.font_titles_color))
-        atualizar_estilo_campo_cor(self.mw.font_titles_color)
-        btn_color = ModernButton("Cor")
-        btn_color.clicked.connect(lambda: self.pick_color(self.mw.font_titles_color))
-        c_layout = QHBoxLayout()
-        c_layout.addWidget(self.mw.font_titles_color); c_layout.addWidget(btn_color)
+        if "superior" in position:
+            y = frame.top() + margin_y
+        elif "inferior" in position:
+            y = frame.bottom() - margin_y - h
+        else:
+            y = frame.top() + (frame.height() - h) / 2
+        return QRectF(x, y, w, h)
 
-        self.mw.font_titles_pos = QComboBox()
-        popular_combo_posicoes(self.mw.font_titles_pos, "inferior_esquerda")
-
-        self.mw.font_titles_mx = QSpinBox(); self.mw.font_titles_mx.setRange(0,500)
-        self.mw.font_titles_my = QSpinBox(); self.mw.font_titles_my.setRange(0,500)
-        marg_layout = criar_linha_margens(self.mw.font_titles_mx, self.mw.font_titles_my)
-
-        fl.addRow("Fonte:", self.mw.font_titles)
-        fl.addRow("Tamanho:", self.mw.font_titles_size)
-        fl.addRow("Cor Hex:", c_layout)
-        fl.addRow("Posição:", self.mw.font_titles_pos)
-        fl.addRow("Margens:", marg_layout)
-        layout.addWidget(grp)
-
-        grp_anim = QGroupBox("Animação (Máquina de Escrever)")
-        fl_anim = QFormLayout(grp_anim)
-        self.mw.font_titles_typ = QDoubleSpinBox(); self.mw.font_titles_typ.setRange(0.1,20)
-        self.mw.font_titles_era = QDoubleSpinBox(); self.mw.font_titles_era.setRange(0.1,20)
-        self.mw.font_titles_opc = QDoubleSpinBox(); self.mw.font_titles_opc.setRange(0.05, 1.0); self.mw.font_titles_opc.setSingleStep(0.1)
-        fl_anim.addRow("Tempo Digitando (s):", self.mw.font_titles_typ)
-        fl_anim.addRow("Tempo Apagando (s):", self.mw.font_titles_era)
-        fl_anim.addRow("Opacidade Final:", self.mw.font_titles_opc)
-        layout.addWidget(grp_anim)
-        remove_spinbox_buttons(self)
-
-    def pick_color(self, le):
-        c = QColorDialog.getColor(QColor(limpar_hex(le.text())), self)
-        if c.isValid(): le.setText(c.name().upper())
-
-class PageWatermark(QWidget):
-    def __init__(self, main_win):
-        super().__init__()
-        self.mw = main_win
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
-
-        lbl = QLabel("🏷️ Marca d'água")
-        lbl.setObjectName("PageTitle")
-        layout.addWidget(lbl)
-
-        self.mw.wm_enabled = ToggleSwitch("Ativar Marca d'água")
-        layout.addWidget(self.mw.wm_enabled)
-
-        grp = QGroupBox("Configurações")
-        fl = QFormLayout(grp)
-        self.mw.wm_mode = QComboBox()
-        self.mw.wm_mode.addItems(["Texto", "Imagem"])
-        self.mw.wm_text = QLineEdit()
-        self.mw.wm_img = PathPicker("file", "Imagens (*.png *.jpg);;Todos (*.*)", "Caminho da Imagem")
-
-        self.mw.wm_mode.currentTextChanged.connect(self.toggle_mode)
-
-        self.mw.wm_pos = QComboBox(); popular_combo_posicoes(self.mw.wm_pos, "inferior_direita")
-
-        self.mw.wm_mx = QSpinBox(); self.mw.wm_mx.setRange(0,800)
-        self.mw.wm_my = QSpinBox(); self.mw.wm_my.setRange(0,800)
-        marg_layout = criar_linha_margens(self.mw.wm_mx, self.mw.wm_my)
-
-        fl.addRow("Modo:", self.mw.wm_mode)
-        fl.addRow("Texto:", self.mw.wm_text)
-        fl.addRow("Imagem:", self.mw.wm_img)
-        fl.addRow("Posição:", self.mw.wm_pos)
-        fl.addRow("Margens:", marg_layout)
-        layout.addWidget(grp)
-        remove_spinbox_buttons(self)
-        self.toggle_mode(self.mw.wm_mode.currentText())
-
-    def toggle_mode(self, text):
-        is_txt = (text == "Texto")
-        self.mw.wm_text.setEnabled(is_txt)
-        self.mw.wm_img.setEnabled(not is_txt)
-
-class PageIntro(QWidget):
-    def __init__(self, main_win):
-        super().__init__()
-        self.mw = main_win
-        root_layout = QVBoxLayout(self)
-        root_layout.setContentsMargins(0, 0, 0, 0)
-
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QFrame.NoFrame)
-        root_layout.addWidget(scroll)
-
-        content = QWidget()
-        scroll.setWidget(content)
-        layout = QVBoxLayout(content)
-
-        lbl = QLabel("🎬 Frases de Introdução")
-        lbl.setObjectName("PageTitle")
-        layout.addWidget(lbl)
-
-        self.mw.intro_enabled = ToggleSwitch("Ativar Frases Iniciais")
-        layout.addWidget(self.mw.intro_enabled)
-
-        self.mw.intro_table = QTableWidget(0, 3)
-        self.mw.intro_table.setHorizontalHeaderLabels(["Início", "Duração", "Frase"])
-        self.mw.intro_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
-        layout.addWidget(self.mw.intro_table)
-
-        btn_row = QHBoxLayout()
-        btn_add = ModernButton("Adicionar Frase")
-        btn_rem = ModernButton("Remover")
-        btn_clear = ModernButton("Limpar Frases")
-        btn_sample = ModernButton("Exemplo Lo-fi")
-        btn_save_preset = ModernButton("Salvar Preset")
-        btn_load_preset = ModernButton("Carregar Preset")
-        btn_add.clicked.connect(lambda: self._add_row("0.0", "4.0", "Nova frase..."))
-        btn_rem.clicked.connect(self._rem_row)
-        btn_clear.clicked.connect(lambda: self.mw.intro_table.setRowCount(0))
-        btn_sample.clicked.connect(self._sample_rows)
-        btn_row.addWidget(btn_add); btn_row.addWidget(btn_rem); btn_row.addWidget(btn_clear); btn_row.addWidget(btn_sample); btn_row.addStretch()
-        layout.addLayout(btn_row)
-        preset_row = QHBoxLayout()
-        btn_save_preset.clicked.connect(self._save_preset)
-        btn_load_preset.clicked.connect(self._load_preset)
-        preset_row.addWidget(btn_save_preset)
-        preset_row.addWidget(btn_load_preset)
-        preset_row.addStretch()
-        layout.addLayout(preset_row)
-
-        grp = QGroupBox("Configurações da Intro")
-        fl = QFormLayout(grp)
-
-        self.mw.intro_eff = QComboBox()
-        self.mw.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
-        self.mw.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação (opcional)")
-        self.mw.intro_typing_volume = QDoubleSpinBox(); self.mw.intro_typing_volume.setRange(0, 1); self.mw.intro_typing_volume.setSingleStep(0.05); self.mw.intro_typing_volume.setValue(0.30)
-        self.mw.intro_typing_cps = QDoubleSpinBox(); self.mw.intro_typing_cps.setRange(1, 120); self.mw.intro_typing_cps.setValue(18.0); self.mw.intro_typing_cps.setSuffix(" car/s")
-        self.mw.intro_backspace_cps = QDoubleSpinBox(); self.mw.intro_backspace_cps.setRange(1, 120); self.mw.intro_backspace_cps.setValue(22.0); self.mw.intro_backspace_cps.setSuffix(" car/s")
-        self.mw.intro_show_cursor = ToggleSwitch("Cursor piscando")
-        self.mw.intro_show_cursor.setChecked(True)
-        self.mw.intro_backspace_audio = ToggleSwitch("Som no backspace")
-        self.mw.intro_backspace_audio.setChecked(True)
-        self.mw.intro_delay = QDoubleSpinBox(); self.mw.intro_delay.setRange(0, 120)
-        self.mw.intro_delay.setSuffix(" s")
-        self.mw.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar. Use 0 para tocar junto com a intro.")
-
-        fl.addRow("Efeito:", self.mw.intro_eff)
-        fl.addRow("Vel. digitação:", self.mw.intro_typing_cps)
-        fl.addRow("Vel. backspace:", self.mw.intro_backspace_cps)
-        fl.addRow("", self.mw.intro_show_cursor)
-        fl.addRow("", self.mw.intro_backspace_audio)
-        fl.addRow("Som (Teclado):", self.mw.intro_audio)
-        fl.addRow("Volume digitação:", self.mw.intro_typing_volume)
-        fl.addRow("Música começa após:", self.mw.intro_delay)
-        layout.addWidget(grp)
-
-        grp_text = QGroupBox("Texto da Intro")
-        fl_text = QFormLayout(grp_text)
-        self.mw.intro_font = criar_combo_fontes()
-        self.mw.intro_font_size = QSpinBox(); self.mw.intro_font_size.setRange(8, 180); self.mw.intro_font_size.setValue(48)
-        self.mw.intro_font_weight = QSpinBox(); self.mw.intro_font_weight.setRange(100, 900); self.mw.intro_font_weight.setSingleStep(50); self.mw.intro_font_weight.setValue(700)
-        self.mw.intro_color = QLineEdit("#FFFFFF")
-        self.mw.intro_color.textChanged.connect(lambda: atualizar_estilo_campo_cor(self.mw.intro_color))
-        atualizar_estilo_campo_cor(self.mw.intro_color)
-        btn_intro_color = ModernButton("Cor")
-        btn_intro_color.clicked.connect(lambda: self.pick_color(self.mw.intro_color))
-        intro_color_row = QHBoxLayout()
-        intro_color_row.addWidget(self.mw.intro_color)
-        intro_color_row.addWidget(btn_intro_color)
-        self.mw.intro_opacity = QDoubleSpinBox(); self.mw.intro_opacity.setRange(0.05, 1.0); self.mw.intro_opacity.setSingleStep(0.05); self.mw.intro_opacity.setValue(0.92)
-        self.mw.intro_pos = QComboBox(); popular_combo_posicoes(self.mw.intro_pos, "inferior_esquerda")
-        self.mw.intro_mx = QSpinBox(); self.mw.intro_mx.setRange(0, 800); self.mw.intro_mx.setValue(90)
-        self.mw.intro_my = QSpinBox(); self.mw.intro_my.setRange(0, 800); self.mw.intro_my.setValue(120)
-        intro_margins = criar_linha_margens(self.mw.intro_mx, self.mw.intro_my)
-        fl_text.addRow("Fonte:", self.mw.intro_font)
-        fl_text.addRow("Tamanho:", self.mw.intro_font_size)
-        fl_text.addRow("Peso:", self.mw.intro_font_weight)
-        fl_text.addRow("Cor:", intro_color_row)
-        fl_text.addRow("Opacidade:", self.mw.intro_opacity)
-        fl_text.addRow("Posição:", self.mw.intro_pos)
-        fl_text.addRow("Margem X/Y:", intro_margins)
-        layout.addWidget(grp_text)
-
-        grp_effect = QGroupBox("Sombra, Fundo e Aleatoriedade")
-        fl_effect = QFormLayout(grp_effect)
-        self.mw.intro_shadow_size = QDoubleSpinBox(); self.mw.intro_shadow_size.setRange(0, 10); self.mw.intro_shadow_size.setSingleStep(0.1); self.mw.intro_shadow_size.setValue(1.4)
-        self.mw.intro_shadow_opacity = QDoubleSpinBox(); self.mw.intro_shadow_opacity.setRange(0, 1); self.mw.intro_shadow_opacity.setSingleStep(0.05); self.mw.intro_shadow_opacity.setValue(0.65)
-        self.mw.intro_background_box = ToggleSwitch("Fundo preto transparente atrás do texto")
-        self.mw.intro_box_opacity = QDoubleSpinBox(); self.mw.intro_box_opacity.setRange(0, 1); self.mw.intro_box_opacity.setSingleStep(0.05); self.mw.intro_box_opacity.setValue(0.35)
-        self.mw.intro_randomize = ToggleSwitch("Frases aleatórias")
-        self.mw.intro_random_count = QSpinBox(); self.mw.intro_random_count.setRange(1, 99); self.mw.intro_random_count.setValue(3)
-        fl_effect.addRow("Grossura sombra:", self.mw.intro_shadow_size)
-        fl_effect.addRow("Opac. sombra:", self.mw.intro_shadow_opacity)
-        fl_effect.addRow("", self.mw.intro_background_box)
-        fl_effect.addRow("Opacidade fundo:", self.mw.intro_box_opacity)
-        fl_effect.addRow("", self.mw.intro_randomize)
-        fl_effect.addRow("Qtd. aleatórias:", self.mw.intro_random_count)
-        layout.addWidget(grp_effect)
-        layout.addStretch(1)
-        self._sample_rows()
-        remove_spinbox_buttons(self)
-
-    def _add_row(self, start, dur, txt):
-        r = self.mw.intro_table.rowCount()
-        self.mw.intro_table.insertRow(r)
-        self.mw.intro_table.setItem(r, 0, QTableWidgetItem(start))
-        self.mw.intro_table.setItem(r, 1, QTableWidgetItem(dur))
-        self.mw.intro_table.setItem(r, 2, QTableWidgetItem(txt))
-    def _rem_row(self):
-        for idx in sorted({i.row() for i in self.mw.intro_table.selectedIndexes()}, reverse=True):
-            self.mw.intro_table.removeRow(idx)
-
-    def _sample_rows(self):
-        self.mw.intro_table.setRowCount(0)
-        self._add_row("0.0", "4.0", "take a slow breath...")
-        self._add_row("5.0", "4.0", "let the rain carry the noise away.")
-        self._add_row("10.0", "5.0", "welcome to a quiet little journey.")
-
-    def pick_color(self, le):
-        c = QColorDialog.getColor(QColor(limpar_hex(le.text())), self)
-        if c.isValid():
-            le.setText(c.name().upper())
-
-    def aplicar_config(self, intro: IntroTextConfig):
-        self.mw.intro_enabled.setChecked(bool(intro.enabled))
-        idx = self.mw.intro_eff.findText(intro.effect)
-        if idx >= 0:
-            self.mw.intro_eff.setCurrentIndex(idx)
-        self.mw.intro_audio.set_path(intro.typing_audio_path)
-        self.mw.intro_typing_volume.setValue(float(intro.typing_volume))
-        self.mw.intro_typing_cps.setValue(float(intro.typing_cps))
-        self.mw.intro_backspace_cps.setValue(float(intro.backspace_cps))
-        self.mw.intro_backspace_audio.setChecked(bool(intro.backspace_audio_enabled))
-        self.mw.intro_show_cursor.setChecked(bool(intro.show_cursor))
-        self.mw.intro_delay.setValue(float(intro.delay_music_seconds))
-        idx = self.mw.intro_font.findText(str(intro.font_family))
-        if idx >= 0:
-            self.mw.intro_font.setCurrentIndex(idx)
-        self.mw.intro_font_size.setValue(int(intro.font_size))
-        self.mw.intro_font_weight.setValue(int(intro.font_weight))
-        self.mw.intro_color.setText(str(intro.color or "#FFFFFF"))
-        atualizar_estilo_campo_cor(self.mw.intro_color)
-        self.mw.intro_opacity.setValue(float(intro.opacity))
-        idx = self.mw.intro_pos.findData(intro.position)
-        if idx >= 0:
-            self.mw.intro_pos.setCurrentIndex(idx)
-        self.mw.intro_mx.setValue(int(intro.margin_x))
-        self.mw.intro_my.setValue(int(intro.margin_y))
-        self.mw.intro_shadow_opacity.setValue(float(intro.shadow_opacity))
-        self.mw.intro_shadow_size.setValue(float(intro.shadow_size))
-        self.mw.intro_background_box.setChecked(bool(intro.background_box))
-        self.mw.intro_box_opacity.setValue(float(intro.box_opacity))
-        self.mw.intro_randomize.setChecked(bool(intro.randomize_phrases))
-        self.mw.intro_random_count.setValue(int(intro.random_count))
-        self.mw.intro_table.setRowCount(0)
-        for frase in intro.phrases:
-            self._add_row(f"{frase.inicio:.2f}", f"{frase.duracao:.2f}", frase.texto)
-
-    def _save_preset(self):
-        caminho, _ = QFileDialog.getSaveFileName(self, "Salvar Preset da Intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
-        if not caminho:
+    def _draw_text(self, painter: QPainter, frame: QRectF, text: str, font_family: str, font_size: int, color: str,
+                   opacity: float, position: str, margin_x: int, margin_y: int, weight: int = 700,
+                   shadow_opacity: float = 0.55, box: bool = False, box_opacity: float = 0.35):
+        if not text:
             return
-        intro = self.mw.get_config_obj(validar=False).intro
-        Path(caminho).write_text(json.dumps(intro_config_to_dict(intro), ensure_ascii=False, indent=2), encoding="utf-8")
+        scale = max(0.35, frame.width() / 1280)
+        font = QFont(font_family or "Segoe UI")
+        font.setPixelSize(max(11, int(font_size * scale)))
+        font.setWeight(QFont.Weight(max(100, min(900, int(weight)))))
+        painter.setFont(font)
+        metrics = QFontMetrics(font)
+        bounds = metrics.boundingRect(text).adjusted(-10, -7, 10, 7)
+        rect = self._positioned_rect(frame, bounds.size(), position, int(margin_x * scale), int(margin_y * scale))
 
-    def _load_preset(self):
-        caminho, _ = QFileDialog.getOpenFileName(self, "Carregar Preset da Intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
-        if not caminho:
+        if box:
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(0, 0, 0, int(255 * max(0, min(1, box_opacity)))))
+            painter.drawRoundedRect(rect.adjusted(-8, -5, 8, 5), 7, 7)
+
+        shadow = QColor("#000000")
+        shadow.setAlphaF(max(0, min(1, shadow_opacity)))
+        painter.setPen(shadow)
+        painter.drawText(rect.adjusted(2, 2, 2, 2), Qt.AlignCenter, text)
+
+        main_color = QColor(limpar_hex(color))
+        main_color.setAlphaF(max(0, min(1, opacity)))
+        painter.setPen(main_color)
+        painter.drawText(rect, Qt.AlignCenter, text)
+
+    def _draw_title(self, painter: QPainter, frame: QRectF):
+        cfg = self.config.fonte_texto
+        self._draw_text(
+            painter,
+            frame,
+            "Nome da faixa",
+            cfg.font_family,
+            cfg.font_size,
+            cfg.color,
+            cfg.opacity,
+            cfg.position,
+            cfg.margin_left,
+            cfg.margin_bottom,
+            700,
+            cfg.shadow_opacity,
+        )
+
+    def _draw_intro(self, painter: QPainter, frame: QRectF):
+        intro = self.config.intro
+        if not intro.enabled:
             return
-        try:
-            dados = json.loads(Path(caminho).read_text(encoding="utf-8"))
-            self.aplicar_config(intro_config_from_dict(dados))
-        except Exception as erro:
-            QMessageBox.warning(self, "Preset da Intro", f"Não foi possível carregar o preset:\n{erro}")
+        text = intro.phrases[0].texto if intro.phrases else "Frase de intro"
+        self._draw_text(
+            painter,
+            frame,
+            text,
+            intro.font_family,
+            intro.font_size,
+            intro.color,
+            intro.opacity,
+            intro.position,
+            intro.margin_x,
+            intro.margin_y,
+            intro.font_weight,
+            intro.shadow_opacity,
+            intro.background_box,
+            intro.box_opacity,
+        )
 
-class PageSettings(QWidget):
-    def __init__(self, main_win):
-        super().__init__()
-        self.mw = main_win
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+    def _draw_watermark(self, painter: QPainter, frame: QRectF):
+        wm = self.config.watermark
+        if not wm.enabled:
+            return
+        if wm.mode == "imagem" and wm.image_path and Path(wm.image_path).exists():
+            pixmap = QPixmap(wm.image_path)
+            if pixmap.isNull():
+                return
+            scale = max(0.35, frame.width() / 1280)
+            width = max(24, int(wm.image_width * scale))
+            scaled = pixmap.scaledToWidth(width, Qt.SmoothTransformation)
+            rect = self._positioned_rect(frame, scaled.size(), wm.position, int(wm.margin_x * scale), int(wm.margin_y * scale))
+            painter.setOpacity(max(0, min(1, wm.opacity)))
+            painter.drawPixmap(rect.toRect(), scaled)
+            painter.setOpacity(1.0)
+        else:
+            self._draw_text(
+                painter,
+                frame,
+                wm.text or "Marca",
+                wm.font_family,
+                wm.font_size,
+                wm.color,
+                wm.opacity,
+                wm.position,
+                wm.margin_x,
+                wm.margin_y,
+                700,
+                wm.shadow_opacity,
+            )
 
-        lbl = QLabel("⚙️ Configurações Avançadas")
-        lbl.setObjectName("PageTitle")
-        layout.addWidget(lbl)
-
-        grp_rnd = QGroupBox("Renderização")
-        fl_rnd = QFormLayout(grp_rnd)
-        self.mw.set_gpu = ToggleSwitch("Usar GPU (NVIDIA NVENC)")
-        fl_rnd.addRow("", self.mw.set_gpu)
-        layout.addWidget(grp_rnd)
-
-        grp_fade = QGroupBox("Transições de Áudio")
-        fl_fade = QFormLayout(grp_fade)
-        self.mw.set_fadein = ToggleSwitch("Fade In")
-        self.mw.set_fadeout = ToggleSwitch("Fade Out")
-        self.mw.set_fadein_s = QDoubleSpinBox(); self.mw.set_fadein_s.setRange(0, 60)
-        self.mw.set_fadeout_s = QDoubleSpinBox(); self.mw.set_fadeout_s.setRange(0, 60)
-        fl_fade.addRow(self.mw.set_fadein, self.mw.set_fadein_s)
-        fl_fade.addRow(self.mw.set_fadeout, self.mw.set_fadeout_s)
-        layout.addWidget(grp_fade)
-
-        grp_norm = QGroupBox("Normalização de Áudio (Loudnorm)")
-        fl_norm = QFormLayout(grp_norm)
-        self.mw.set_norm = ToggleSwitch("Ativar Normalização")
-        self.mw.set_lufs = QDoubleSpinBox(); self.mw.set_lufs.setRange(-40, 0)
-        self.mw.set_peak = QDoubleSpinBox(); self.mw.set_peak.setRange(-9, 0)
-        fl_norm.addRow("", self.mw.set_norm)
-        fl_norm.addRow("Target LUFS:", self.mw.set_lufs)
-        fl_norm.addRow("True Peak:", self.mw.set_peak)
-        layout.addWidget(grp_norm)
-        remove_spinbox_buttons(self)
-
-# ---------- Janela Principal ----------
 
 class MainUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Criador de Vídeo Lo-fi {APP_VERSION}")
-        self.resize(900, 640)
-        self.setStyleSheet(STYLE_DARK)
+        self.resize(1280, 760)
+        self.setMinimumSize(1180, 700)
+        self.setStyleSheet(STYLE_PRIME)
 
-        # State
         self.worker = None
-        self.ultimo_video = None
+        self.ultimo_video: Path | None = None
+        self.preview_source: Path | None = None
+        self.preview_pixmap: QPixmap | None = None
         self._config_loading = False
-        self.autosave_timer = QTimer()
+
+        self.autosave_timer = QTimer(self)
         self.autosave_timer.setSingleShot(True)
-        self.autosave_timer.setInterval(1000)
+        self.autosave_timer.setInterval(900)
         self.autosave_timer.timeout.connect(self.save_config)
 
-        # Layout Principal
-        main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(0,0,0,0)
-        main_layout.setSpacing(0)
+        self.preview_timer = QTimer(self)
+        self.preview_timer.setSingleShot(True)
+        self.preview_timer.setInterval(120)
+        self.preview_timer.timeout.connect(self.update_preview)
 
-        # Top Content Area (Sidebar + Pages)
-        content_split = QHBoxLayout()
-        content_split.setContentsMargins(0,0,0,0)
-        content_split.setSpacing(0)
+        root = QHBoxLayout(self)
+        root.setContentsMargins(10, 10, 10, 10)
+        root.setSpacing(10)
 
-        # Sidebar
-        self.sidebar = QFrame()
-        self.sidebar.setObjectName("Sidebar")
-        self.sidebar.setFixedWidth(180)
-        sidebar_layout = QVBoxLayout(self.sidebar)
-        sidebar_layout.setContentsMargins(0, 20, 0, 0)
+        self.left_panel = self.build_left_panel()
+        self.center_panel = self.build_center_panel()
+        self.right_panel = self.build_right_panel()
 
-        app_title = QLabel("LO-FI MAKER")
-        app_title.setObjectName("AppTitle")
-        app_title.setAlignment(Qt.AlignCenter)
-        sidebar_layout.addWidget(app_title)
-        sidebar_layout.addSpacing(20)
+        root.addWidget(self.left_panel)
+        root.addWidget(self.center_panel, 1)
+        root.addWidget(self.right_panel)
 
-        self.nav_list = QListWidget()
-        self.nav_list.setObjectName("SidebarList")
-        items = ["📁 Mídias", "🎬 Intro", "✍️ Títulos", "🏷️ Watermark", "⚙️ Avançado"]
-        self.nav_list.addItems(items)
-        self.nav_list.setCurrentRow(0)
-        sidebar_layout.addWidget(self.nav_list)
+        self.apply_intro_config(IntroTextConfig())
+        self.load_config()
+        self.connect_auto_signals()
+        remove_spin_buttons(self)
+        self.update_preview()
 
-        # Pages
-        self.stack = QStackedWidget()
-        self.stack.setObjectName("ContentArea")
+    # ---------- Construção visual ----------
 
-        self.page_media = PageMedia(self)
-        self.page_intro = PageIntro(self)
-        self.page_titles = PageTitles(self)
-        self.page_watermark = PageWatermark(self)
-        self.page_settings = PageSettings(self)
+    def build_left_panel(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("LeftPanel")
+        panel.setFixedWidth(300)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(14, 14, 14, 14)
+        layout.setSpacing(10)
 
-        self.stack.addWidget(self.page_media)
-        self.stack.addWidget(self.page_intro)
-        self.stack.addWidget(self.page_titles)
-        self.stack.addWidget(self.page_watermark)
-        self.stack.addWidget(self.page_settings)
+        brand = QLabel("LoFi VideoMaker")
+        brand.setObjectName("Brand")
+        subtitle = QLabel("Fluxo do projeto")
+        subtitle.setObjectName("Subtle")
+        layout.addWidget(brand)
+        layout.addWidget(subtitle)
 
-        self.nav_list.currentRowChanged.connect(self.stack.setCurrentIndex)
+        media, media_layout = section("1. Arquivos de entrada")
+        self.video_picker = PathPicker("file", "Mídia visual (*.mp4 *.mov *.mkv *.avi *.webm *.gif *.png *.jpg *.jpeg *.webp);;Todos (*.*)", "Vídeo, GIF ou imagem base")
+        self.music_picker = PathPicker("folder", placeholder="Pasta com músicas")
+        media_layout.addWidget(QLabel("Visual base"))
+        media_layout.addWidget(self.video_picker)
+        media_layout.addWidget(QLabel("Músicas"))
+        media_layout.addWidget(self.music_picker)
+        layout.addWidget(media)
 
-        content_split.addWidget(self.sidebar)
-        content_split.addWidget(self.stack)
-        main_layout.addLayout(content_split, 1)
+        ambience, ambience_layout = section("2. Som ambiente opcional")
+        self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
+        self.bg_vol_slider = QSlider(Qt.Horizontal)
+        self.bg_vol_slider.setRange(0, 20)
+        self.bg_vol_slider.setValue(3)
+        self.bg_vol_label = QLabel("30%")
+        self.bg_vol_slider.valueChanged.connect(lambda value: self.bg_vol_label.setText(f"{value * 10}%"))
+        vol_row = QHBoxLayout()
+        vol_row.addWidget(QLabel("Volume"))
+        vol_row.addWidget(self.bg_vol_slider, 1)
+        vol_row.addWidget(self.bg_vol_label)
+        btn_clear_bg = ActionButton("Limpar", "ghost")
+        btn_clear_bg.clicked.connect(lambda: self.bg_picker.set_path(""))
+        ambience_layout.addWidget(self.bg_picker)
+        ambience_layout.addLayout(vol_row)
+        ambience_layout.addWidget(btn_clear_bg)
+        layout.addWidget(ambience)
 
-        # Footer (Controles persistentes)
-        self.footer = QFrame()
-        self.footer.setObjectName("Footer")
-        self.footer.setFixedHeight(70)
-        footer_layout = QVBoxLayout(self.footer)
-        footer_layout.setContentsMargins(15, 10, 15, 10)
+        output, output_layout = section("3. Saída")
+        self.out_picker = PathPicker("folder", placeholder="Automática: render_DATA_HORA")
+        self.btn_open_output = ActionButton("Abrir pasta", "ghost")
+        self.btn_open_output.clicked.connect(self.abrir_pasta_saida)
+        output_layout.addWidget(self.out_picker)
+        output_layout.addWidget(self.btn_open_output)
+        layout.addWidget(output)
+        layout.addStretch(1)
+        return panel
 
-        # Log toggle e Progresso
-        row1 = QHBoxLayout()
+    def build_center_panel(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("CenterPanel")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+
+        preview_shell = QFrame()
+        preview_shell.setObjectName("PreviewShell")
+        preview_layout = QVBoxLayout(preview_shell)
+        preview_layout.setContentsMargins(12, 10, 12, 12)
+        header = QHBoxLayout()
+        title = QLabel("Preview em tempo real")
+        title.setObjectName("ColumnTitle")
+        self.preview_status = QLabel("Primeiro frame + sobreposições")
+        self.preview_status.setObjectName("Subtle")
+        header.addWidget(title)
+        header.addStretch(1)
+        header.addWidget(self.preview_status)
+        preview_layout.addLayout(header)
+        self.preview = PreviewCanvas()
+        preview_layout.addWidget(self.preview, 1)
+        layout.addWidget(preview_shell, 1)
+
+        transport = QFrame()
+        transport.setObjectName("Transport")
+        transport_layout = QVBoxLayout(transport)
+        transport_layout.setContentsMargins(12, 10, 12, 12)
+        transport_layout.setSpacing(8)
+
+        progress_row = QHBoxLayout()
         self.lbl_status = QLabel("Pronto.")
+        self.lbl_status.setObjectName("Subtle")
         self.prog_bar = QProgressBar()
         self.prog_bar.setRange(0, 100)
         self.prog_bar.setValue(0)
         self.prog_bar.setTextVisible(False)
-        self.btn_log = ModernButton("Exibir Log")
-        self.btn_log.clicked.connect(self.toggle_log)
-        row1.addWidget(self.lbl_status)
-        row1.addWidget(self.prog_bar, 1)
-        row1.addWidget(self.btn_log)
+        progress_row.addWidget(self.lbl_status)
+        progress_row.addWidget(self.prog_bar, 1)
+        transport_layout.addLayout(progress_row)
 
-        # Actions
-        row2 = QHBoxLayout()
-        self.btn_test = ModernButton("Renderizar Teste 30s")
+        buttons = QHBoxLayout()
+        self.btn_log = ActionButton("Mostrar log", "ghost")
+        self.btn_log.clicked.connect(self.toggle_log)
+        self.btn_clear_log = ActionButton("Limpar log", "ghost")
+        self.btn_clear_log.clicked.connect(lambda: self.log_widget.clear())
+        self.btn_test = ActionButton("Teste 30s", "normal")
         self.btn_test.clicked.connect(lambda: self.start_render(teste=True))
-        self.btn_start = ModernButton("Iniciar Renderização Final", "primary")
+        self.btn_start = ActionButton("Iniciar", "primary")
         self.btn_start.clicked.connect(self.iniciar_ou_pausar)
-        self.btn_cancel = ModernButton("Cancelar", "danger")
+        self.btn_cancel = ActionButton("Cancelar", "danger")
         self.btn_cancel.setEnabled(False)
         self.btn_cancel.clicked.connect(self.cancelar_render)
-        row2.addWidget(self.btn_test)
-        row2.addStretch()
-        row2.addWidget(self.btn_cancel)
-        row2.addWidget(self.btn_start)
+        buttons.addWidget(self.btn_log)
+        buttons.addWidget(self.btn_clear_log)
+        buttons.addStretch(1)
+        buttons.addWidget(self.btn_test)
+        buttons.addWidget(self.btn_cancel)
+        buttons.addWidget(self.btn_start)
+        transport_layout.addLayout(buttons)
 
-        footer_layout.addLayout(row1)
-        footer_layout.addLayout(row2)
-        main_layout.addWidget(self.footer)
-
-        # Overlay de Log (Oculto por padrão)
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
         self.log_widget.setFixedHeight(120)
         self.log_widget.hide()
-        main_layout.addWidget(self.log_widget)
+        transport_layout.addWidget(self.log_widget)
+        layout.addWidget(transport)
+        return panel
 
-        self.load_config()
-        self._connect_autosave_signals(self)
+    def build_right_panel(self) -> QFrame:
+        panel = QFrame()
+        panel.setObjectName("RightPanel")
+        panel.setFixedWidth(430)
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(12, 14, 12, 12)
+        layout.setSpacing(10)
+        title = QLabel("Ajustes")
+        title.setObjectName("ColumnTitle")
+        layout.addWidget(title)
 
-    def toggle_log(self):
-        vis = not self.log_widget.isVisible()
-        self.log_widget.setVisible(vis)
-        self.btn_log.setText("Ocultar Log" if vis else "Exibir Log")
+        self.tabs = QTabWidget()
+        self.tabs.addTab(self.build_titles_tab(), "Títulos")
+        self.tabs.addTab(self.build_intro_tab(), "Intro")
+        self.tabs.addTab(self.build_watermark_tab(), "Marca")
+        self.tabs.addTab(self.build_audio_tab(), "Áudio")
+        self.tabs.addTab(self.build_render_tab(), "Render")
+        self.tabs.tabBar().setUsesScrollButtons(False)
+        layout.addWidget(self.tabs, 1)
+        return panel
 
-    def _connect_autosave_signals(self, widget):
-        # Auto-binder genérico
-        for child in widget.findChildren(QWidget):
-            if isinstance(child, QLineEdit): child.textChanged.connect(self.trigger_autosave)
-            elif isinstance(child, QSpinBox) or isinstance(child, QDoubleSpinBox): child.valueChanged.connect(self.trigger_autosave)
-            elif isinstance(child, ToggleSwitch): child.stateChanged.connect(self.trigger_autosave)
-            elif isinstance(child, QComboBox): child.currentIndexChanged.connect(self.trigger_autosave)
-            elif isinstance(child, QSlider): child.valueChanged.connect(self.trigger_autosave)
+    def build_titles_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+        form = QGridLayout()
+        setup_form(form)
 
-    def trigger_autosave(self, *args):
-        if not self._config_loading: self.autosave_timer.start()
+        self.font_titles = combo_fontes("Georgia")
+        self.font_titles_size = QSpinBox(); self.font_titles_size.setRange(8, 160); self.font_titles_size.setValue(34)
+        self.font_titles_color = ColorEdit("#FFFFFF")
+        self.font_titles_pos = combo_posicao("inferior_esquerda")
+        self.font_titles_mx = QSpinBox(); self.font_titles_mx.setRange(0, 800); self.font_titles_mx.setValue(45)
+        self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 800); self.font_titles_my.setValue(42)
+        self.font_titles_typ = QDoubleSpinBox(); self.font_titles_typ.setRange(0.1, 20); self.font_titles_typ.setValue(2.2)
+        self.font_titles_era = QDoubleSpinBox(); self.font_titles_era.setRange(0.1, 20); self.font_titles_era.setValue(1.6)
+        self.font_titles_opc = QDoubleSpinBox(); self.font_titles_opc.setRange(0.05, 1.0); self.font_titles_opc.setSingleStep(0.05); self.font_titles_opc.setValue(0.93)
+        self.font_titles_shadow = QDoubleSpinBox(); self.font_titles_shadow.setRange(0, 1); self.font_titles_shadow.setSingleStep(0.05); self.font_titles_shadow.setValue(0.60)
 
-    # --- Mapeamento Config <-> UI ---
+        color_row = self.color_row(self.font_titles_color)
+        add_row(form, 0, "Fonte", self.font_titles)
+        add_row(form, 1, "Tamanho", self.font_titles_size)
+        add_row(form, 2, "Cor", color_row)
+        add_row(form, 3, "Posição", self.font_titles_pos)
+        add_row(form, 4, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
+        add_row(form, 5, "Digita por", self.font_titles_typ)
+        add_row(form, 6, "Apaga por", self.font_titles_era)
+        add_row(form, 7, "Opacidade", self.font_titles_opc)
+        add_row(form, 8, "Sombra", self.font_titles_shadow)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        return tab
+
+    def build_intro_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(8, 8, 8, 8)
+        layout.setSpacing(8)
+        self.intro_tabs = QTabWidget()
+        self.intro_tabs.addTab(self.build_intro_phrases_tab(), "Frases")
+        self.intro_tabs.addTab(self.build_intro_text_tab(), "Texto")
+        self.intro_tabs.addTab(self.build_intro_sound_tab(), "Som")
+        self.intro_tabs.tabBar().setUsesScrollButtons(False)
+        layout.addWidget(self.intro_tabs)
+        return tab
+
+    def build_intro_phrases_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        self.intro_enabled = ToggleSwitch("Usar intro no começo do vídeo")
+        layout.addWidget(self.intro_enabled)
+        self.intro_table = QTableWidget(0, 3)
+        self.intro_table.setHorizontalHeaderLabels(["Início", "Duração", "Frase"])
+        self.intro_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.Stretch)
+        self.intro_table.setFixedHeight(200)
+        layout.addWidget(self.intro_table)
+
+        row = QHBoxLayout()
+        for text, slot in (
+            ("Adicionar", lambda: self.add_intro_row("0.0", "4.0", "Nova frase...")),
+            ("Remover", self.remove_intro_rows),
+            ("Limpar", lambda: self.intro_table.setRowCount(0)),
+            ("Exemplo", self.sample_intro_rows),
+        ):
+            btn = ActionButton(text, "ghost")
+            btn.clicked.connect(slot)
+            row.addWidget(btn)
+        row.addStretch(1)
+        layout.addLayout(row)
+
+        form = QGridLayout()
+        setup_form(form)
+        self.intro_eff = QComboBox()
+        self.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
+        set_input_width(self.intro_eff)
+        self.intro_delay = QDoubleSpinBox(); self.intro_delay.setRange(0, 120); self.intro_delay.setSuffix(" s")
+        self.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar.")
+        self.intro_randomize = ToggleSwitch("Escolher frases aleatórias")
+        self.intro_random_count = QSpinBox(); self.intro_random_count.setRange(1, 99); self.intro_random_count.setValue(3)
+        add_row(form, 0, "Efeito", self.intro_eff)
+        add_row(form, 1, "Música após", self.intro_delay)
+        add_wide(form, 2, self.intro_randomize)
+        add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
+        layout.addLayout(form)
+
+        preset_row = QHBoxLayout()
+        btn_save = ActionButton("Salvar preset", "ghost")
+        btn_load = ActionButton("Carregar preset", "ghost")
+        btn_save.clicked.connect(self.save_intro_preset)
+        btn_load.clicked.connect(self.load_intro_preset)
+        preset_row.addWidget(btn_save)
+        preset_row.addWidget(btn_load)
+        preset_row.addStretch(1)
+        layout.addLayout(preset_row)
+        layout.addStretch(1)
+        return tab
+
+    def build_intro_text_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        form = QGridLayout()
+        setup_form(form)
+        self.intro_font = combo_fontes("Georgia")
+        self.intro_font_size = QSpinBox(); self.intro_font_size.setRange(8, 180); self.intro_font_size.setValue(48)
+        self.intro_font_weight = QSpinBox(); self.intro_font_weight.setRange(100, 900); self.intro_font_weight.setSingleStep(50); self.intro_font_weight.setValue(700)
+        self.intro_color = ColorEdit("#FFFFFF")
+        self.intro_opacity = QDoubleSpinBox(); self.intro_opacity.setRange(0.05, 1.0); self.intro_opacity.setSingleStep(0.05); self.intro_opacity.setValue(0.92)
+        self.intro_pos = combo_posicao("inferior_esquerda")
+        self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
+        self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
+        self.intro_shadow_size = QDoubleSpinBox(); self.intro_shadow_size.setRange(0, 10); self.intro_shadow_size.setSingleStep(0.1); self.intro_shadow_size.setValue(1.4)
+        self.intro_shadow_opacity = QDoubleSpinBox(); self.intro_shadow_opacity.setRange(0, 1); self.intro_shadow_opacity.setSingleStep(0.05); self.intro_shadow_opacity.setValue(0.65)
+        self.intro_background_box = ToggleSwitch("Fundo transparente atrás do texto")
+        self.intro_box_opacity = QDoubleSpinBox(); self.intro_box_opacity.setRange(0, 1); self.intro_box_opacity.setSingleStep(0.05); self.intro_box_opacity.setValue(0.35)
+
+        add_row(form, 0, "Fonte", self.intro_font)
+        add_row(form, 1, "Tamanho", self.intro_font_size)
+        add_row(form, 2, "Peso", self.intro_font_weight)
+        add_row(form, 3, "Cor", self.color_row(self.intro_color))
+        add_row(form, 4, "Opacidade", self.intro_opacity)
+        add_row(form, 5, "Posição", self.intro_pos)
+        add_row(form, 6, "Margens", margins_widget(self.intro_mx, self.intro_my))
+        add_row(form, 7, "Sombra", self.intro_shadow_size)
+        add_row(form, 8, "Opac. sombra", self.intro_shadow_opacity)
+        add_wide(form, 9, self.intro_background_box)
+        add_row(form, 10, "Opac. fundo", self.intro_box_opacity)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        return tab
+
+    def build_intro_sound_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        form = QGridLayout()
+        setup_form(form)
+        self.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação opcional")
+        self.intro_typing_volume = QDoubleSpinBox(); self.intro_typing_volume.setRange(0, 1); self.intro_typing_volume.setSingleStep(0.05); self.intro_typing_volume.setValue(0.30)
+        self.intro_typing_cps = QDoubleSpinBox(); self.intro_typing_cps.setRange(1, 120); self.intro_typing_cps.setValue(18.0); self.intro_typing_cps.setSuffix(" car/s")
+        self.intro_backspace_cps = QDoubleSpinBox(); self.intro_backspace_cps.setRange(1, 120); self.intro_backspace_cps.setValue(22.0); self.intro_backspace_cps.setSuffix(" car/s")
+        self.intro_show_cursor = ToggleSwitch("Cursor piscando")
+        self.intro_show_cursor.setChecked(True)
+        self.intro_backspace_audio = ToggleSwitch("Som no backspace")
+        self.intro_backspace_audio.setChecked(True)
+        add_row(form, 0, "Som teclado", self.intro_audio)
+        add_row(form, 1, "Volume", self.intro_typing_volume)
+        add_row(form, 2, "Digitação", self.intro_typing_cps)
+        add_row(form, 3, "Backspace", self.intro_backspace_cps)
+        add_wide(form, 4, self.intro_show_cursor)
+        add_wide(form, 5, self.intro_backspace_audio)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        return tab
+
+    def build_watermark_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        form = QGridLayout()
+        setup_form(form)
+        self.wm_enabled = ToggleSwitch("Mostrar marca d'água")
+        self.wm_enabled.setChecked(True)
+        self.wm_mode = QComboBox(); self.wm_mode.addItems(["Texto", "Imagem"]); set_input_width(self.wm_mode)
+        self.wm_text = QLineEdit("⚓")
+        self.wm_img = PathPicker("file", "Imagens (*.png *.jpg *.jpeg *.webp);;Todos (*.*)", "Imagem da marca")
+        self.wm_width = QSpinBox(); self.wm_width.setRange(16, 1000); self.wm_width.setValue(180)
+        self.wm_font = combo_fontes("Segoe UI Symbol")
+        self.wm_font_size = QSpinBox(); self.wm_font_size.setRange(8, 180); self.wm_font_size.setValue(44)
+        self.wm_color = ColorEdit("#FFFFFF")
+        self.wm_opacity = QDoubleSpinBox(); self.wm_opacity.setRange(0.05, 1.0); self.wm_opacity.setSingleStep(0.05); self.wm_opacity.setValue(0.70)
+        self.wm_pos = combo_posicao("inferior_direita")
+        self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
+        self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
+        self.wm_shadow = QDoubleSpinBox(); self.wm_shadow.setRange(0, 1); self.wm_shadow.setSingleStep(0.05); self.wm_shadow.setValue(0.60)
+        add_wide(form, 0, self.wm_enabled)
+        add_row(form, 1, "Tipo", self.wm_mode)
+        add_row(form, 2, "Texto", self.wm_text)
+        add_row(form, 3, "Imagem", self.wm_img)
+        add_row(form, 4, "Largura img.", self.wm_width)
+        add_row(form, 5, "Fonte", self.wm_font)
+        add_row(form, 6, "Tamanho", self.wm_font_size)
+        add_row(form, 7, "Cor", self.color_row(self.wm_color))
+        add_row(form, 8, "Opacidade", self.wm_opacity)
+        add_row(form, 9, "Posição", self.wm_pos)
+        add_row(form, 10, "Margens", margins_widget(self.wm_mx, self.wm_my))
+        add_row(form, 11, "Sombra", self.wm_shadow)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
+        self.update_watermark_mode(self.wm_mode.currentText())
+        return tab
+
+    def build_audio_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        form = QGridLayout()
+        setup_form(form)
+        self.set_fadein = ToggleSwitch("Fade in")
+        self.set_fadein.setChecked(True)
+        self.set_fadeout = ToggleSwitch("Fade out")
+        self.set_fadeout.setChecked(True)
+        self.set_fadein_s = QDoubleSpinBox(); self.set_fadein_s.setRange(0, 60); self.set_fadein_s.setValue(3)
+        self.set_fadeout_s = QDoubleSpinBox(); self.set_fadeout_s.setRange(0, 60); self.set_fadeout_s.setValue(3)
+        self.set_norm = ToggleSwitch("Normalizar loudness")
+        self.set_norm.setChecked(True)
+        self.set_lufs = QDoubleSpinBox(); self.set_lufs.setRange(-40, 0); self.set_lufs.setValue(-14)
+        self.set_peak = QDoubleSpinBox(); self.set_peak.setRange(-9, 0); self.set_peak.setValue(-1)
+        add_wide(form, 0, self.set_fadein)
+        add_row(form, 1, "Duração in", self.set_fadein_s)
+        add_wide(form, 2, self.set_fadeout)
+        add_row(form, 3, "Duração out", self.set_fadeout_s)
+        add_wide(form, 4, self.set_norm)
+        add_row(form, 5, "Target LUFS", self.set_lufs)
+        add_row(form, 6, "True peak", self.set_peak)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        return tab
+
+    def build_render_tab(self) -> QWidget:
+        tab = QWidget()
+        layout = QVBoxLayout(tab)
+        layout.setContentsMargins(12, 12, 12, 12)
+        form = QGridLayout()
+        setup_form(form)
+        self.set_gpu = ToggleSwitch("Usar GPU NVIDIA/NVENC")
+        self.set_gpu.setChecked(True)
+        add_wide(form, 0, self.set_gpu)
+        note = QLabel("Render final usa o FFmpeg local incluído no projeto.")
+        note.setObjectName("Subtle")
+        add_wide(form, 1, note)
+        layout.addLayout(form)
+        layout.addStretch(1)
+        return tab
+
+    def color_row(self, edit: ColorEdit) -> QWidget:
+        box = QWidget()
+        layout = QHBoxLayout(box)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(6)
+        button = ActionButton("Cor", "ghost")
+        button.setFixedWidth(70)
+        button.clicked.connect(lambda: self.pick_color(edit))
+        layout.addWidget(edit, 1)
+        layout.addWidget(button)
+        return box
+
+    # ---------- Preview ----------
+
+    def extract_preview_frame(self, source: Path | None):
+        if not source or not source.exists():
+            self.preview_source = None
+            self.preview_pixmap = None
+            self.preview_status.setText("Aguardando mídia visual")
+            return
+        if self.preview_source == source and self.preview_pixmap:
+            return
+        self.preview_source = source
+        self.preview_pixmap = None
+        suffix = source.suffix.lower()
+        if suffix in EXTENSOES_IMAGEM:
+            pixmap = QPixmap(str(source))
+            self.preview_pixmap = pixmap if not pixmap.isNull() else None
+            self.preview_status.setText("Imagem base")
+            return
+        if suffix not in EXTENSOES_VIDEO or not FFMPEG.exists():
+            self.preview_status.setText("Preview indisponível")
+            return
+        try:
+            preview_dir = SCRIPT_DIR / "_temp_audio_processado"
+            preview_dir.mkdir(parents=True, exist_ok=True)
+            target = preview_dir / "preview_primeiro_frame.jpg"
+            command = [str(FFMPEG), "-y", "-hide_banner", "-loglevel", "error", "-i", str(source), "-frames:v", "1", "-q:v", "2", str(target)]
+            subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, **criar_kwargs_subprocess_controlado())
+            pixmap = QPixmap(str(target))
+            self.preview_pixmap = pixmap if not pixmap.isNull() else None
+            self.preview_status.setText("Primeiro frame do vídeo")
+        except Exception:
+            self.preview_pixmap = None
+            self.preview_status.setText("Não foi possível gerar preview")
+
+    def update_preview(self):
+        try:
+            config = self.get_config_obj(validar=False)
+        except Exception:
+            config = None
+        self.extract_preview_frame(self.video_picker.path())
+        self.preview.set_preview(self.preview_pixmap, config)
+
+    # ---------- Configuração ----------
+
+    def get_intro_phrases(self) -> list[IntroFraseConfig]:
+        phrases: list[IntroFraseConfig] = []
+        for row in range(self.intro_table.rowCount()):
+            start_item = self.intro_table.item(row, 0)
+            dur_item = self.intro_table.item(row, 1)
+            text_item = self.intro_table.item(row, 2)
+            try:
+                start = float((start_item.text() if start_item else "") or 0)
+                duration = float((dur_item.text() if dur_item else "") or 4)
+            except ValueError as exc:
+                raise ErroRender(f"Revise os tempos da frase de intro na linha {row + 1}.") from exc
+            text = (text_item.text() if text_item else "").strip()
+            if text:
+                phrases.append(IntroFraseConfig(start, duration, text))
+        return phrases
+
     def get_config_obj(self, validar: bool = True) -> RenderConfig:
-        f_txt = FonteTextoConfig(
+        video = self.video_picker.path()
+        music = self.music_picker.path()
+        if validar:
+            if video is None:
+                raise ErroRender("Escolha o vídeo, GIF ou imagem base.")
+            if music is None:
+                raise ErroRender("Escolha a pasta onde estão as músicas.")
+
+        title_font = FonteTextoConfig(
             font_family=self.font_titles.currentText(),
             font_size=self.font_titles_size.value(),
             color=limpar_hex(self.font_titles_color.text()),
+            opacity=self.font_titles_opc.value(),
             position=self.font_titles_pos.currentData(),
             margin_left=self.font_titles_mx.value(),
             margin_bottom=self.font_titles_my.value(),
             typing_duration=self.font_titles_typ.value(),
             erasing_duration=self.font_titles_era.value(),
-            opacity=self.font_titles_opc.value()
+            shadow_opacity=self.font_titles_shadow.value(),
         )
-        wm = WatermarkConfig(
+        watermark = WatermarkConfig(
             enabled=self.wm_enabled.isChecked(),
             mode=self.wm_mode.currentText().lower(),
             text=self.wm_text.text(),
             image_path=self.wm_img.line.text(),
+            image_width=self.wm_width.value(),
+            font_family=self.wm_font.currentText(),
+            font_size=self.wm_font_size.value(),
+            color=limpar_hex(self.wm_color.text()),
+            opacity=self.wm_opacity.value(),
             position=self.wm_pos.currentData(),
             margin_x=self.wm_mx.value(),
-            margin_y=self.wm_my.value()
+            margin_y=self.wm_my.value(),
+            shadow_opacity=self.wm_shadow.value(),
         )
-        norm = NormalizacaoConfig(
-            enabled=self.set_norm.isChecked(),
-            target_lufs=self.set_lufs.value(),
-            true_peak=self.set_peak.value()
-        )
-
-        phrases = []
-        for r in range(self.intro_table.rowCount()):
-            item_start = self.intro_table.item(r, 0)
-            item_dur = self.intro_table.item(r, 1)
-            item_txt = self.intro_table.item(r, 2)
-            try:
-                start = float((item_start.text() if item_start else "") or 0)
-                dur = float((item_dur.text() if item_dur else "") or 4)
-            except ValueError as erro:
-                raise ErroRender(f"Revise os tempos da frase de intro na linha {r + 1}.") from erro
-            txt = (item_txt.text() if item_txt else "") or ""
-            if txt: phrases.append(IntroFraseConfig(start, dur, txt))
-
         intro = IntroTextConfig(
             enabled=self.intro_enabled.isChecked(),
-            phrases=phrases,
+            phrases=self.get_intro_phrases(),
             effect=self.intro_eff.currentText(),
             typing_audio_path=self.intro_audio.line.text(),
             typing_volume=self.intro_typing_volume.value(),
@@ -992,41 +1202,34 @@ class MainUI(QWidget):
             shadow_opacity=self.intro_shadow_opacity.value(),
             shadow_size=self.intro_shadow_size.value(),
             background_box=self.intro_background_box.isChecked(),
-            box_opacity=self.intro_box_opacity.value()
+            box_opacity=self.intro_box_opacity.value(),
         )
-
-        video_path = self.video_picker.path()
-        music_folder = self.music_picker.path()
-        output_folder = self.out_picker.path() or gerar_pasta_saida_padrao()
-
-        if validar:
-            if video_path is None:
-                raise ErroRender("Escolha o vídeo ou GIF base.")
-            if music_folder is None:
-                raise ErroRender("Escolha a pasta onde estão as músicas.")
-
         return RenderConfig(
-            video_path=video_path,
-            music_folder=music_folder,
+            video_path=video,
+            music_folder=music,
             background_audio_path=self.bg_picker.path(),
-            output_folder=output_folder,
+            output_folder=self.out_picker.path() or gerar_pasta_saida_padrao(),
             use_gpu=self.set_gpu.isChecked(),
             use_fade_in=self.set_fadein.isChecked(),
             use_fade_out=self.set_fadeout.isChecked(),
             fade_in_seconds=self.set_fadein_s.value(),
             fade_out_seconds=self.set_fadeout_s.value(),
             background_volume=self.bg_vol_slider.value() / 10.0,
-            normalizacao=norm,
-            fonte_texto=f_txt,
-            watermark=wm,
-            intro=intro
+            normalizacao=NormalizacaoConfig(
+                enabled=self.set_norm.isChecked(),
+                target_lufs=self.set_lufs.value(),
+                true_peak=self.set_peak.value(),
+            ),
+            fonte_texto=title_font,
+            watermark=watermark,
+            intro=intro,
         )
 
     def save_config(self):
         try:
             cfg = self.get_config_obj(validar=False)
-            # Mapeia pro dictionary esperado
-            dados = {
+            salvar_json_config({
+                "app_version": APP_VERSION,
                 "paths": {
                     "video_path": caminho_ou_vazio(self.video_picker.path()),
                     "music_folder": caminho_ou_vazio(self.music_picker.path()),
@@ -1034,115 +1237,220 @@ class MainUI(QWidget):
                     "output_folder": caminho_ou_vazio(self.out_picker.path()),
                 },
                 "render": {
-                    "use_gpu": cfg.use_gpu, "use_fade_in": cfg.use_fade_in, "use_fade_out": cfg.use_fade_out,
-                    "fade_in_seconds": cfg.fade_in_seconds, "fade_out_seconds": cfg.fade_out_seconds,
+                    "use_gpu": cfg.use_gpu,
+                    "use_fade_in": cfg.use_fade_in,
+                    "use_fade_out": cfg.use_fade_out,
+                    "fade_in_seconds": cfg.fade_in_seconds,
+                    "fade_out_seconds": cfg.fade_out_seconds,
                     "background_volume": cfg.background_volume,
                 },
                 "normalizacao": asdict(cfg.normalizacao),
                 "fonte_texto": asdict(cfg.fonte_texto),
                 "watermark": asdict(cfg.watermark),
-                "intro": intro_config_to_dict(cfg.intro)
-            }
-            salvar_json_config(dados)
-        except Exception as e:
-            print(f"Erro ao salvar config: {e}")
+                "intro": intro_config_to_dict(cfg.intro),
+            })
+        except Exception as exc:
+            print(f"Erro ao salvar config: {exc}")
 
     def load_config(self):
         self._config_loading = True
-        dados = carregar_json_config()
-        if not dados:
-            self._config_loading = False
-            return
+        data = carregar_json_config()
+        if data:
+            paths = data.get("paths", {})
+            self.video_picker.set_path(paths.get("video_path"))
+            self.music_picker.set_path(paths.get("music_folder"))
+            self.bg_picker.set_path(paths.get("background_audio_path"))
+            self.out_picker.set_path(paths.get("output_folder"))
 
-        p = dados.get("paths", {})
-        self.video_picker.set_path(p.get("video_path"))
-        self.music_picker.set_path(p.get("music_folder"))
-        self.bg_picker.set_path(p.get("background_audio_path"))
-        self.out_picker.set_path(p.get("output_folder"))
+            render = data.get("render", {})
+            self.set_gpu.setChecked(bool(render.get("use_gpu", True)))
+            self.set_fadein.setChecked(bool(render.get("use_fade_in", True)))
+            self.set_fadeout.setChecked(bool(render.get("use_fade_out", True)))
+            self.set_fadein_s.setValue(float(render.get("fade_in_seconds", 3.0)))
+            self.set_fadeout_s.setValue(float(render.get("fade_out_seconds", 3.0)))
+            self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 10))
 
-        r = dados.get("render", {})
-        self.set_gpu.setChecked(r.get("use_gpu", True))
-        self.set_fadein.setChecked(r.get("use_fade_in", True))
-        self.set_fadeout.setChecked(r.get("use_fade_out", True))
-        self.set_fadein_s.setValue(r.get("fade_in_seconds", 3.0))
-        self.set_fadeout_s.setValue(r.get("fade_out_seconds", 3.0))
-        self.bg_vol_slider.setValue(int(r.get("background_volume", 0.3) * 10))
+            norm = data.get("normalizacao", {})
+            self.set_norm.setChecked(bool(norm.get("enabled", True)))
+            self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
+            self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
 
-        n = dados.get("normalizacao", {})
-        self.set_norm.setChecked(bool(n.get("enabled", self.set_norm.isChecked())))
-        self.set_lufs.setValue(float(n.get("target_lufs", self.set_lufs.value())))
-        self.set_peak.setValue(float(n.get("true_peak", self.set_peak.value())))
-
-        f = dados.get("fonte_texto", {})
-        familia = f.get("font_family")
-        if familia:
-            idx = self.font_titles.findText(str(familia))
-            if idx >= 0:
-                self.font_titles.setCurrentIndex(idx)
-        self.font_titles_size.setValue(int(f.get("font_size", self.font_titles_size.value())))
-        self.font_titles_color.setText(str(f.get("color", self.font_titles_color.text()) or "#FFFFFF"))
-        atualizar_estilo_campo_cor(self.font_titles_color)
-        idx = self.font_titles_pos.findData(f.get("position", self.font_titles_pos.currentData()))
-        if idx >= 0:
-            self.font_titles_pos.setCurrentIndex(idx)
-        self.font_titles_mx.setValue(int(f.get("margin_left", self.font_titles_mx.value())))
-        self.font_titles_my.setValue(int(f.get("margin_bottom", self.font_titles_my.value())))
-        self.font_titles_typ.setValue(float(f.get("typing_duration", self.font_titles_typ.value())))
-        self.font_titles_era.setValue(float(f.get("erasing_duration", self.font_titles_era.value())))
-        self.font_titles_opc.setValue(float(f.get("opacity", self.font_titles_opc.value())))
-
-        w = dados.get("watermark", {})
-        self.wm_enabled.setChecked(bool(w.get("enabled", self.wm_enabled.isChecked())))
-        modo = str(w.get("mode", "texto")).lower()
-        idx = self.wm_mode.findText("Imagem" if modo == "imagem" else "Texto")
-        if idx >= 0:
-            self.wm_mode.setCurrentIndex(idx)
-        self.wm_text.setText(str(w.get("text", self.wm_text.text()) or ""))
-        self.wm_img.set_path(w.get("image_path"))
-        idx = self.wm_pos.findData(w.get("position", self.wm_pos.currentData()))
-        if idx >= 0:
-            self.wm_pos.setCurrentIndex(idx)
-        self.wm_mx.setValue(int(w.get("margin_x", self.wm_mx.value())))
-        self.wm_my.setValue(int(w.get("margin_y", self.wm_my.value())))
-        self.page_watermark.toggle_mode(self.wm_mode.currentText())
-
-        intro = intro_config_from_dict(dados.get("intro", {}))
-        self.page_intro.aplicar_config(intro)
-
+            self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
+            self.apply_watermark_config(WatermarkConfig(**{k: v for k, v in data.get("watermark", {}).items() if k in WatermarkConfig.__dataclass_fields__}))
+            self.apply_intro_config(intro_config_from_dict(data.get("intro", {})))
         self._config_loading = False
 
-    def log_msg(self, msg):
+    def apply_title_config(self, cfg: FonteTextoConfig):
+        self.set_combo_text(self.font_titles, cfg.font_family)
+        self.font_titles_size.setValue(int(cfg.font_size))
+        self.font_titles_color.setText(cfg.color)
+        self.font_titles_opc.setValue(float(cfg.opacity))
+        self.set_combo_data(self.font_titles_pos, cfg.position)
+        self.font_titles_mx.setValue(int(cfg.margin_left))
+        self.font_titles_my.setValue(int(cfg.margin_bottom))
+        self.font_titles_typ.setValue(float(cfg.typing_duration))
+        self.font_titles_era.setValue(float(cfg.erasing_duration))
+        self.font_titles_shadow.setValue(float(cfg.shadow_opacity))
+
+    def apply_watermark_config(self, cfg: WatermarkConfig):
+        self.wm_enabled.setChecked(bool(cfg.enabled))
+        self.set_combo_text(self.wm_mode, "Imagem" if cfg.mode == "imagem" else "Texto")
+        self.wm_text.setText(cfg.text)
+        self.wm_img.set_path(cfg.image_path)
+        self.wm_width.setValue(int(cfg.image_width))
+        self.set_combo_text(self.wm_font, cfg.font_family)
+        self.wm_font_size.setValue(int(cfg.font_size))
+        self.wm_color.setText(cfg.color)
+        self.wm_opacity.setValue(float(cfg.opacity))
+        self.set_combo_data(self.wm_pos, cfg.position)
+        self.wm_mx.setValue(int(cfg.margin_x))
+        self.wm_my.setValue(int(cfg.margin_y))
+        self.wm_shadow.setValue(float(cfg.shadow_opacity))
+        self.update_watermark_mode(self.wm_mode.currentText())
+
+    def apply_intro_config(self, cfg: IntroTextConfig):
+        self.intro_enabled.setChecked(bool(cfg.enabled))
+        self.set_combo_text(self.intro_eff, cfg.effect)
+        self.intro_delay.setValue(float(cfg.delay_music_seconds))
+        self.intro_randomize.setChecked(bool(cfg.randomize_phrases))
+        self.intro_random_count.setValue(int(cfg.random_count))
+        self.set_intro_rows(cfg.phrases)
+        self.set_combo_text(self.intro_font, cfg.font_family)
+        self.intro_font_size.setValue(int(cfg.font_size))
+        self.intro_font_weight.setValue(int(cfg.font_weight))
+        self.intro_color.setText(cfg.color)
+        self.intro_opacity.setValue(float(cfg.opacity))
+        self.set_combo_data(self.intro_pos, cfg.position)
+        self.intro_mx.setValue(int(cfg.margin_x))
+        self.intro_my.setValue(int(cfg.margin_y))
+        self.intro_shadow_size.setValue(float(cfg.shadow_size))
+        self.intro_shadow_opacity.setValue(float(cfg.shadow_opacity))
+        self.intro_background_box.setChecked(bool(cfg.background_box))
+        self.intro_box_opacity.setValue(float(cfg.box_opacity))
+        self.intro_audio.set_path(cfg.typing_audio_path)
+        self.intro_typing_volume.setValue(float(cfg.typing_volume))
+        self.intro_typing_cps.setValue(float(cfg.typing_cps))
+        self.intro_backspace_cps.setValue(float(cfg.backspace_cps))
+        self.intro_show_cursor.setChecked(bool(cfg.show_cursor))
+        self.intro_backspace_audio.setChecked(bool(cfg.backspace_audio_enabled))
+
+    @staticmethod
+    def set_combo_text(combo: QComboBox, text: str):
+        index = combo.findText(str(text))
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    @staticmethod
+    def set_combo_data(combo: QComboBox, value: str):
+        index = combo.findData(value)
+        if index >= 0:
+            combo.setCurrentIndex(index)
+
+    # ---------- Intro ----------
+
+    def add_intro_row(self, start, duration, text):
+        row = self.intro_table.rowCount()
+        self.intro_table.insertRow(row)
+        self.intro_table.setItem(row, 0, QTableWidgetItem(str(start)))
+        self.intro_table.setItem(row, 1, QTableWidgetItem(str(duration)))
+        self.intro_table.setItem(row, 2, QTableWidgetItem(str(text)))
+        self.trigger_autosave()
+
+    def set_intro_rows(self, phrases: list[IntroFraseConfig]):
+        self.intro_table.setRowCount(0)
+        for phrase in phrases:
+            self.add_intro_row(f"{phrase.inicio:.2f}", f"{phrase.duracao:.2f}", phrase.texto)
+
+    def remove_intro_rows(self):
+        rows = sorted({idx.row() for idx in self.intro_table.selectedIndexes()}, reverse=True)
+        for row in rows:
+            self.intro_table.removeRow(row)
+        self.trigger_autosave()
+
+    def sample_intro_rows(self):
+        self.set_intro_rows(IntroTextConfig().phrases)
+
+    def save_intro_preset(self):
+        path, _ = QFileDialog.getSaveFileName(self, "Salvar preset da intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
+        if not path:
+            return
+        intro = self.get_config_obj(validar=False).intro
+        Path(path).write_text(json.dumps(intro_config_to_dict(intro), ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def load_intro_preset(self):
+        path, _ = QFileDialog.getOpenFileName(self, "Carregar preset da intro", str(SCRIPT_DIR), "Preset JSON (*.json)")
+        if not path:
+            return
+        try:
+            data = json.loads(Path(path).read_text(encoding="utf-8"))
+            self.apply_intro_config(intro_config_from_dict(data))
+        except Exception as exc:
+            QMessageBox.warning(self, "Preset da intro", f"Não foi possível carregar o preset:\n{exc}")
+
+    # ---------- Eventos e execução ----------
+
+    def connect_auto_signals(self):
+        for child in self.findChildren(QWidget):
+            if isinstance(child, QLineEdit):
+                child.textChanged.connect(self.trigger_autosave)
+            elif isinstance(child, (QSpinBox, QDoubleSpinBox)):
+                child.valueChanged.connect(self.trigger_autosave)
+            elif isinstance(child, QComboBox):
+                child.currentIndexChanged.connect(self.trigger_autosave)
+            elif isinstance(child, QSlider):
+                child.valueChanged.connect(self.trigger_autosave)
+            elif isinstance(child, QCheckBox):
+                child.stateChanged.connect(self.trigger_autosave)
+        self.intro_table.itemChanged.connect(self.trigger_autosave)
+
+    def trigger_autosave(self, *args):
+        if self._config_loading:
+            return
+        self.autosave_timer.start()
+        self.preview_timer.start()
+
+    def pick_color(self, edit: ColorEdit):
+        color = QColorDialog.getColor(QColor(limpar_hex(edit.text())), self)
+        if color.isValid():
+            edit.setText(color.name().upper())
+
+    def update_watermark_mode(self, text: str):
+        image_mode = text == "Imagem"
+        self.wm_text.setEnabled(not image_mode)
+        self.wm_font.setEnabled(not image_mode)
+        self.wm_font_size.setEnabled(not image_mode)
+        self.wm_color.setEnabled(not image_mode)
+        self.wm_img.setEnabled(image_mode)
+        self.wm_width.setEnabled(image_mode)
+        self.trigger_autosave()
+
+    def log_msg(self, text: str):
         self.log_widget.moveCursor(QTextCursor.End)
-        self.log_widget.insertPlainText(msg)
+        self.log_widget.insertPlainText(text)
         self.log_widget.moveCursor(QTextCursor.End)
 
-    def iniciar_ou_pausar(self):
-        if self.worker and self.worker.isRunning():
-            self.alternar_pausa()
-            return
-        self.start_render(teste=False)
+    def toggle_log(self):
+        visible = not self.log_widget.isVisible()
+        self.log_widget.setVisible(visible)
+        self.btn_log.setText("Ocultar log" if visible else "Mostrar log")
 
     def start_render(self, teste=False):
         if self.worker and self.worker.isRunning():
             return
-
         try:
-            config = self.get_config_obj()
+            config = self.get_config_obj(validar=True)
             self.save_config()
-        except Exception as erro:
-            QMessageBox.warning(self, "Configuração incompleta", str(erro))
+        except Exception as exc:
+            QMessageBox.warning(self, "Configuração incompleta", str(exc))
             return
-
         self.log_widget.clear()
         self.prog_bar.setValue(0)
         self.ultimo_video = None
         self.lbl_status.setText("Iniciando teste de 30s" if teste else "Iniciando renderização")
-
-        self.btn_start.setEnabled(True)
         self.btn_start.setText("Pausar")
+        self.btn_start.setEnabled(True)
         self.btn_test.setEnabled(False)
         self.btn_cancel.setEnabled(True)
-
         self.worker = WorkerRender(config, modo="teste_30s" if teste else "final")
         self.worker.log.connect(self.log_msg)
         self.worker.progresso.connect(self.atualizar_progresso)
@@ -1150,18 +1458,14 @@ class MainUI(QWidget):
         self.worker.terminado.connect(self.finalizar_render)
         self.worker.start()
 
-    def alternar_pausa(self):
-        if not self.worker or not self.worker.isRunning():
-            return
-        pausado = self.worker.alternar_pausa()
-        if pausado:
-            self.btn_start.setText("Retomar")
-            self.lbl_status.setText("Pausado")
-            self.log_msg("\nProcesso pausado.\n")
+    def iniciar_ou_pausar(self):
+        if self.worker and self.worker.isRunning():
+            paused = self.worker.alternar_pausa()
+            self.btn_start.setText("Retomar" if paused else "Pausar")
+            self.lbl_status.setText("Pausado" if paused else "Retomando")
+            self.log_msg("\nProcesso pausado.\n" if paused else "\nProcesso retomado.\n")
         else:
-            self.btn_start.setText("Pausar")
-            self.lbl_status.setText("Retomando")
-            self.log_msg("\nProcesso retomado.\n")
+            self.start_render(teste=False)
 
     def cancelar_render(self):
         if not self.worker or not self.worker.isRunning():
@@ -1172,15 +1476,14 @@ class MainUI(QWidget):
         self.log_msg("\nCancelamento solicitado. Encerrando FFmpeg e removendo arquivo incompleto...\n")
         self.worker.cancelar()
 
-    def atualizar_progresso(self, valor: int):
-        self.prog_bar.setValue(max(0, min(100, int(valor))))
+    def atualizar_progresso(self, value: int):
+        self.prog_bar.setValue(max(0, min(100, int(value))))
 
     def finalizar_render(self, sucesso: bool, mensagem: str, caminho_saida: str):
+        self.btn_start.setText("Iniciar")
         self.btn_start.setEnabled(True)
-        self.btn_start.setText("Iniciar Renderização Final")
         self.btn_test.setEnabled(True)
         self.btn_cancel.setEnabled(False)
-
         if sucesso:
             self.ultimo_video = Path(caminho_saida)
             self.prog_bar.setValue(100)
@@ -1204,41 +1507,35 @@ class MainUI(QWidget):
                 msg.setInformativeText(f"O log foi salvo em:\n{log_path}")
                 msg.setDetailedText(mensagem)
                 msg.exec()
-
         self.worker = None
 
     def abrir_pasta_saida(self):
-        # Pega o caminho do picker da interface nova
-        pasta = self.out_picker.path()
-
-        if pasta is None and self.ultimo_video and self.ultimo_video.exists():
-            pasta = self.ultimo_video.parent
-        if pasta is None:
-            pasta = SCRIPT_DIR
-
+        folder = self.out_picker.path()
+        if folder is None and self.ultimo_video and self.ultimo_video.exists():
+            folder = self.ultimo_video.parent
+        if folder is None:
+            folder = SCRIPT_DIR
         try:
-            pasta.mkdir(parents=True, exist_ok=True)
+            folder.mkdir(parents=True, exist_ok=True)
             if os.name == "nt":
-                os.startfile(str(pasta))
+                os.startfile(str(folder))
             elif sys.platform == "darwin":
-                import subprocess
-                subprocess.Popen(["open", str(pasta)])
+                subprocess.Popen(["open", str(folder)])
             else:
-                import subprocess
-                subprocess.Popen(["xdg-open", str(pasta)])
-        except Exception as e:
-            QMessageBox.information(self, "Pasta de saída", f"Não foi possível abrir a pasta:\n{pasta}\n\nErro: {e}")
+                subprocess.Popen(["xdg-open", str(folder)])
+        except Exception as exc:
+            QMessageBox.information(self, "Pasta de saída", f"Não foi possível abrir:\n{folder}\n\n{exc}")
 
     def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
-            resposta = QMessageBox.question(
+            answer = QMessageBox.question(
                 self,
                 "Cancelar renderização?",
                 "Existe uma renderização em andamento. Fechar a janela vai cancelar o processo e apagar arquivos incompletos. Deseja fechar?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
-            if resposta == QMessageBox.Yes:
+            if answer == QMessageBox.Yes:
                 self.save_config()
                 self.cancelar_render()
                 event.accept()
@@ -1248,12 +1545,14 @@ class MainUI(QWidget):
             self.save_config()
             event.accept()
 
+
 def iniciar_ui():
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
-    win = MainUI()
-    win.show()
+    window = MainUI()
+    window.show()
     sys.exit(app.exec())
+
 
 if __name__ == "__main__":
     iniciar_ui()
