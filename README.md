@@ -2,6 +2,12 @@
 
 LoFi VideoMaker é um aplicativo de desktop para Windows que cria vídeos lo-fi a partir de uma mídia visual base e uma pasta de músicas. A interface é feita em PySide6 e a renderização é executada pelo FFmpeg local incluído no projeto.
 
+## Versão Atual
+
+O script está na versão `8.0.0`.
+
+A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
+
 ## Recursos
 
 - Seleção de vídeo, GIF ou imagem base.
@@ -26,7 +32,7 @@ LoFi VideoMaker é um aplicativo de desktop para Windows que cria vídeos lo-fi 
 cd F:\scripts\GitHub\LoFi_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\lofi_videomaker_v8.py
+.\.venv\Scripts\python.exe .\LoFi_VideoMaker.py
 ```
 
 O script espera encontrar o FFmpeg nestes caminhos dentro do projeto:
@@ -42,7 +48,7 @@ Esses arquivos são rastreados com Git LFS porque são grandes. Depois de clonar
 
 ```text
 LoFi_VideoMaker/
-  lofi_videomaker_v8.py       Aplicativo principal em PySide6
+  LoFi_VideoMaker.py          Aplicativo principal em PySide6
   requirements.txt            Dependências de execução
   requirements-dev.txt        Dependências de empacotamento
   build_executable.ps1        Preparação futura do executável
@@ -60,4 +66,3 @@ LoFi_VideoMaker/
 O código já separa a pasta do aplicativo da pasta de recursos empacotados. Isso permite que um executável futuro salve configurações e logs ao lado do `.exe`, enquanto `ffmpeg.exe` e `ffprobe.exe` ficam embutidos como recursos do pacote.
 
 O arquivo [packaging/LoFi_VideoMaker.spec](packaging/LoFi_VideoMaker.spec) já inclui os binários do FFmpeg no caminho interno `ffmpeg/bin/`.
-

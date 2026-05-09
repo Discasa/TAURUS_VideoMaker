@@ -4,6 +4,18 @@
 
 O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, uma sequência de músicas, áudio de fundo opcional, textos, marca d'água e efeitos de introdução. O processamento de mídia é feito com FFmpeg.
 
+## Versão do Script
+
+A versão atual do script é `8.0.0`.
+
+O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
+
+Sempre que a versão do script mudar, atualize:
+
+- a constante `APP_VERSION` em [LoFi_VideoMaker.py](LoFi_VideoMaker.py);
+- esta seção da documentação;
+- o [CHANGELOG.md](CHANGELOG.md).
+
 ## Execução em Modo Fonte
 
 Use PowerShell na pasta do projeto:
@@ -12,10 +24,10 @@ Use PowerShell na pasta do projeto:
 cd F:\scripts\GitHub\LoFi_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\lofi_videomaker_v8.py
+.\.venv\Scripts\python.exe .\LoFi_VideoMaker.py
 ```
 
-Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [lofi_videomaker_v8.py](lofi_videomaker_v8.py).
+Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [LoFi_VideoMaker.py](LoFi_VideoMaker.py).
 
 ## FFmpeg Local
 
@@ -93,9 +105,8 @@ O resultado será gerado em `dist/LoFi_VideoMaker.exe`.
 Depois de alterar o código:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile .\lofi_videomaker_v8.py
+.\.venv\Scripts\python.exe -m py_compile .\LoFi_VideoMaker.py
 .\ffmpeg\bin\ffmpeg.exe -hide_banner -encoders
 ```
 
 Antes de publicar uma versão empacotada, faça pelo menos uma renderização curta de teste e confira se o modo CPU e o modo NVENC continuam funcionando.
-

@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão v7: acabamento visual corrigido.
+Versão 8.0.0.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -46,6 +46,9 @@ from pathlib import Path
 # ==========================
 # CONFIGURAÇÕES BASE
 # ==========================
+
+APP_VERSION = "8.0.0"
+
 
 def obter_diretorio_aplicacao() -> Path:
     if getattr(sys, "frozen", False):
@@ -3524,7 +3527,7 @@ class TitleBar(QFrame):
 
         title = QLabel("Criador de Vídeo Lo-fi")
         title.setObjectName("AppTitle")
-        subtitle = QLabel("PySide6 • FFmpeg • autosave JSON")
+        subtitle = QLabel(f"Versão {APP_VERSION} • PySide6 • FFmpeg • autosave JSON")
         subtitle.setObjectName("Subtitle")
 
         stack = QVBoxLayout()
@@ -3574,7 +3577,7 @@ class MainWindow(QWidget):
         self._carregando_config = False
         self.autosave_timer: QTimer | None = None
 
-        self.setWindowTitle("Criador de Vídeo Lo-fi")
+        self.setWindowTitle(f"Criador de Vídeo Lo-fi {APP_VERSION}")
         self.setWindowFlags(Qt.FramelessWindowHint | Qt.Window)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
         self.resize(1120, 720)
@@ -3922,6 +3925,7 @@ class MainWindow(QWidget):
     def coletar_estado_config(self) -> dict:
         return {
             "version": 1,
+            "app_version": APP_VERSION,
             "paths": {
                 "video_path": caminho_ou_vazio(self.video_picker.path()),
                 "music_folder": caminho_ou_vazio(self.music_folder_picker.path()),
