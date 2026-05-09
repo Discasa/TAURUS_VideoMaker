@@ -39,6 +39,8 @@ from engine import (
     salvar_json_config,
 )
 
+CONTROL_HEIGHT = 34
+
 try:
     from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer
     from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen, QPixmap, QTextCursor
@@ -121,8 +123,9 @@ QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
     background: #0D1420;
     border: 1px solid #31415C;
     border-radius: 16px;
-    min-height: 32px;
-    padding: 4px 12px;
+    min-height: 24px;
+    max-height: 34px;
+    padding: 2px 12px;
     selection-background-color: #2F86FF;
 }
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus {
@@ -264,7 +267,7 @@ def add_wide(form: QGridLayout, row: int, widget: QWidget):
 
 
 def set_input_width(widget: QWidget):
-    widget.setMinimumHeight(32)
+    widget.setFixedHeight(CONTROL_HEIGHT)
     widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
     if isinstance(widget, QComboBox):
         widget.setMaxVisibleItems(12)
@@ -279,7 +282,7 @@ class ActionButton(QPushButton):
         self.kind = kind
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.setMinimumWidth(width)
-        self.setFixedHeight(34)
+        self.setFixedHeight(CONTROL_HEIGHT)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.setFlat(True)
         self.refresh_style()
@@ -389,8 +392,9 @@ class ColorEdit(QLineEdit):
                 background: #0D1420;
                 border: 1px solid #31415C;
                 border-radius: 16px;
-                min-height: 32px;
-                padding: 4px 12px;
+                min-height: 24px;
+                max-height: 34px;
+                padding: 2px 12px;
                 color: {color};
                 font-weight: 800;
             }}
@@ -410,6 +414,7 @@ class PathPicker(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(6)
         self.line = QLineEdit()
+        self.line.setFixedHeight(CONTROL_HEIGHT)
         self.line.setPlaceholderText(placeholder)
         self.button = ActionButton("Escolher", "ghost")
         self.button.setFixedWidth(86)
@@ -491,6 +496,13 @@ def remove_spin_buttons(root: QWidget):
     for spin in root.findChildren(QAbstractSpinBox):
         spin.setButtonSymbols(QAbstractSpinBox.NoButtons)
         spin.setAlignment(Qt.AlignLeft)
+        spin.setFixedHeight(CONTROL_HEIGHT)
+
+
+def padronizar_altura_controles(root: QWidget):
+    for child in root.findChildren(QWidget):
+        if isinstance(child, (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, ActionButton)):
+            child.setFixedHeight(CONTROL_HEIGHT)
 
 
 class PreviewCanvas(QWidget):
@@ -711,6 +723,7 @@ class MainUI(QWidget):
         self.load_config()
         self.connect_auto_signals()
         remove_spin_buttons(self)
+        padronizar_altura_controles(self)
         self.update_preview()
 
     # ---------- Construção visual ----------
@@ -742,6 +755,7 @@ class MainUI(QWidget):
         output, output_layout = section("Saída")
         self.out_picker = PathPicker("folder", placeholder="Automática: render_DATA_HORA")
         self.btn_open_output = ActionButton("Abrir pasta", "ghost")
+        self.btn_open_output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.btn_open_output.clicked.connect(self.abrir_pasta_saida)
         output_layout.addWidget(self.out_picker)
         output_layout.addWidget(self.btn_open_output)

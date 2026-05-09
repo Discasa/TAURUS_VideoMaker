@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.27 - 2026-05-09
+
+- Padronizada a altura de campos de texto, seletores, campos numéricos e botões.
+- Ajustado o botão `Abrir pasta` para preencher a largura do card de saída.
+
 ## 8.0.26 - 2026-05-09
 
 - Definida a normalização de loudness como ativa por padrão.
