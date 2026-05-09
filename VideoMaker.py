@@ -130,6 +130,12 @@ QLabel#ImagePreview {
     border-radius: 12px;
     color: #8FA4C4;
 }
+QWidget#PreviewGroup {
+    background: transparent;
+}
+QWidget#PreviewVolumeBar {
+    background: transparent;
+}
 QLabel {
     background: transparent;
 }
@@ -986,6 +992,7 @@ class MainUI(QWidget):
         self.video_widget.hide()
 
         self.preview_group = QWidget()
+        self.preview_group.setObjectName("PreviewGroup")
         preview_group_layout = QVBoxLayout(self.preview_group)
         preview_group_layout.setContentsMargins(0, 0, 0, 0)
         preview_group_layout.setSpacing(4)
@@ -993,20 +1000,24 @@ class MainUI(QWidget):
         preview_group_layout.addWidget(self.video_widget)
         self.set_preview_group_height(PREVIEW_HEIGHT_NORMAL)
         preview_layout.addStretch(1)
-        volume_row = QHBoxLayout()
+        volume_bar = QWidget()
+        volume_bar.setObjectName("PreviewVolumeBar")
+        volume_row = QHBoxLayout(volume_bar)
         volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.addStretch(1)
         self.preview_volume_label = QLabel("50%")
         self.preview_volume_label.setObjectName("Subtle")
+        self.preview_volume_label.setFixedWidth(30)
+        self.preview_volume_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.preview_volume_slider = QSlider(Qt.Horizontal)
         self.preview_volume_slider.setRange(0, 20)
         self.preview_volume_slider.setValue(10)
-        self.preview_volume_slider.setFixedWidth(150)
+        self.preview_volume_slider.setFixedWidth(148)
         self.preview_volume_slider.valueChanged.connect(self.set_preview_volume)
         volume_row.addWidget(QLabel("Volume"))
         volume_row.addWidget(self.preview_volume_slider)
         volume_row.addWidget(self.preview_volume_label)
-        preview_group_layout.addLayout(volume_row)
+        preview_group_layout.addWidget(volume_bar)
         preview_layout.addWidget(self.preview_group, 0, Qt.AlignHCenter)
         preview_layout.addStretch(1)
         layout.addWidget(preview_shell, 1)

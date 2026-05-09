@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.46 - 2026-05-09
+
+- Corrigido o fundo da barra de volume do preview para combinar com o painel.
+- Ajustado o alinhamento direito do volume para manter a porcentagem dentro da largura do preview.
+
 ## 8.0.45 - 2026-05-09
 
 - O slider de volume agora acompanha a largura e posição do preview ao abrir ou fechar o log.
