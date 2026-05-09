@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.1 - 2026-05-09
+
+- Ocultadas as janelas de console abertas por chamadas internas ao FFmpeg e FFprobe.
+- Mantido o controle de processo usado para pausa, cancelamento e encerramento de renderizações.
+- Documentado o comportamento esperado para execução como `.pyw` e para o executável futuro.
+
 ## 2026-05-09
 
 - Registrada a versão atual do script como `8.0.0`.

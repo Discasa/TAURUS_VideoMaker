@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.0.
+Versão 8.0.1.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.0"
+APP_VERSION = "8.0.1"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -428,7 +428,14 @@ CONTROLE_EXECUCAO = ControleExecucao()
 def criar_kwargs_subprocess_controlado():
     kwargs = {}
     if os.name == "nt":
-        kwargs["creationflags"] = subprocess.CREATE_NEW_PROCESS_GROUP
+        creationflags = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+        creationflags |= getattr(subprocess, "CREATE_NO_WINDOW", 0)
+        kwargs["creationflags"] = creationflags
+
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = getattr(subprocess, "SW_HIDE", 0)
+        kwargs["startupinfo"] = startupinfo
     else:
         kwargs["preexec_fn"] = os.setsid
     return kwargs
@@ -840,6 +847,7 @@ class RenderEngine:
             text=True,
             encoding="utf-8",
             errors="ignore",
+            **criar_kwargs_subprocess_controlado(),
         )
         if resultado.returncode != 0:
             raise ErroRender(f"Não foi possível obter a duração de: {arquivo.name}\n{resultado.stderr}")
@@ -2130,6 +2138,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text=True,
             encoding="utf-8",
             errors="ignore",
+            **criar_kwargs_subprocess_controlado(),
         )
         saida = resultado.stdout + resultado.stderr
         if "h264_nvenc" not in saida:
@@ -2148,6 +2157,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
             text=True,
             encoding="utf-8",
             errors="ignore",
+            **criar_kwargs_subprocess_controlado(),
         )
         saida = resultado.stdout + resultado.stderr
         if "subtitles" not in saida:

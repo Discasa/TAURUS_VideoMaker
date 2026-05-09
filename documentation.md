@@ -6,7 +6,7 @@ O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, 
 
 ## Versão do Script
 
-A versão atual do script é `8.0.0`.
+A versão atual do script é `8.0.1`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
@@ -99,6 +99,12 @@ Quando chegar a hora de gerar o executável, o comando esperado é:
 ```
 
 O resultado será gerado em `dist/LoFi_VideoMaker.exe`.
+
+## Janelas de Console do FFmpeg
+
+O aplicativo principal é uma interface gráfica e o executável futuro está configurado para ser gerado sem console. Mesmo assim, programas externos chamados pelo aplicativo, como `ffmpeg.exe` e `ffprobe.exe`, podem abrir janelas próprias se forem iniciados sem flags específicas do Windows.
+
+A partir da versão `8.0.1`, todas as chamadas internas de FFmpeg e FFprobe usam `CREATE_NO_WINDOW` e `STARTF_USESHOWWINDOW` para ocultar janelas de console dos subprocessos. Isso vale tanto para execução como `.py`, `.pyw` quanto para o executável futuro gerado pelo PyInstaller.
 
 ## Validação Recomendada
 
