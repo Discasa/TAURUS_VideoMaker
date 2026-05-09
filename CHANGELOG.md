@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.16 - 2026-05-09
+
+- Aumentada a largura inicial e mínima da janela para priorizar a área central.
+- Reduzidas levemente as colunas laterais e os botões de ação para evitar truncamento nos controles centrais.
+
 ## 8.0.15 - 2026-05-09
 
 - Refeita a interface como editor em três colunas: fluxo de arquivos, preview central e ajustes em abas.

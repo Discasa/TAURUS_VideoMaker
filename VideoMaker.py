@@ -268,7 +268,7 @@ class ActionButton(QPushButton):
         super().__init__(text)
         self.kind = kind
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setMinimumWidth(124)
+        self.setMinimumWidth(112)
         self.setFixedHeight(34)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.refresh_style()
@@ -651,8 +651,8 @@ class MainUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"Criador de Vídeo Lo-fi {APP_VERSION}")
-        self.resize(1280, 760)
-        self.setMinimumSize(1180, 700)
+        self.resize(1420, 800)
+        self.setMinimumSize(1320, 720)
         self.setStyleSheet(STYLE_PRIME)
 
         self.worker = None
@@ -680,7 +680,7 @@ class MainUI(QWidget):
         self.right_panel = self.build_right_panel()
 
         root.addWidget(self.left_panel)
-        root.addWidget(self.center_panel, 1)
+        root.addWidget(self.center_panel, 2)
         root.addWidget(self.right_panel)
 
         self.apply_intro_config(IntroTextConfig())
@@ -694,7 +694,7 @@ class MainUI(QWidget):
     def build_left_panel(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("LeftPanel")
-        panel.setFixedWidth(300)
+        panel.setFixedWidth(285)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
@@ -815,7 +815,7 @@ class MainUI(QWidget):
     def build_right_panel(self) -> QFrame:
         panel = QFrame()
         panel.setObjectName("RightPanel")
-        panel.setFixedWidth(430)
+        panel.setFixedWidth(410)
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(12, 14, 12, 12)
         layout.setSpacing(10)
