@@ -32,7 +32,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.23"
+APP_VERSION = "8.0.24"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -706,8 +706,9 @@ class RenderEngine:
             raise ErroRender(f"ffprobe.exe não encontrado em: {FFPROBE}")
 
         video = self.config.video_path
-        if not video or not video.exists() or video.suffix.lower() not in EXTENSOES_VIDEO:
-            raise ErroRender("Escolha um vídeo ou GIF base válido.")
+        extensoes_visuais = EXTENSOES_VIDEO + EXTENSOES_IMAGEM
+        if not video or not video.exists() or video.suffix.lower() not in extensoes_visuais:
+            raise ErroRender("Escolha um vídeo, GIF ou imagem base válido.")
 
         pasta = self.config.music_folder
         if not pasta or not pasta.exists() or not pasta.is_dir():
@@ -744,7 +745,7 @@ class RenderEngine:
         self.progress(0)
         self.stage("Lendo arquivos")
         self.log("\n=== Configuração usada ===\n")
-        self.log(f"Vídeo/GIF base: {self.config.video_path}\n")
+        self.log(f"Mídia visual base: {self.config.video_path}\n")
         self.log(f"Pasta das músicas: {self.config.music_folder}\n")
         self.log(f"Som de fundo: {self.config.background_audio_path or 'não usado'}\n")
         self.log(f"Pasta de saída: {self.config.output_folder}\n")
@@ -1629,6 +1630,12 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         self.log(filter_complex + "\n")
         return arquivo_filtro
 
+    def argumentos_entrada_visual_base(self) -> list[str]:
+        caminho = self.config.video_path
+        if caminho.suffix.lower() in EXTENSOES_IMAGEM:
+            return ["-loop", "1", "-framerate", "30", "-i", str(caminho)]
+        return ["-stream_loop", "-1", "-i", str(caminho)]
+
     def montar_video(self, audio_final: Path, duracao_total: float, tracks: list[TrackInfo], usar_gpu: bool, prefixo_saida: str = "video_final") -> Path:
         self.stage("Montando vídeo final")
         self.log("\nMontando vídeo final...\n")
@@ -1647,10 +1654,9 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         comando = [
             str(FFMPEG),
             "-y",
-            "-stream_loop", "-1",
-            "-i", str(self.config.video_path),
-            "-i", str(audio_final),
         ]
+        comando += self.argumentos_entrada_visual_base()
+        comando += ["-i", str(audio_final)]
 
         proximo_indice = 2
         indice_fundo = None
@@ -1689,7 +1695,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         )
 
         comando += [
-            "-/filter_complex", str(arquivo_filtro),
+            "-filter_complex_script", str(arquivo_filtro),
             "-t", str(duracao_total),
             "-map", "[vout]",
         ]
@@ -2007,15 +2013,14 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         usar_gpu = self.config.use_gpu and self.testar_nvenc()
         delay_musica = max(0.0, intro.delay_music_seconds if intro.enabled else 0.0)
 
-        # Entrada 0 = vídeo base; entrada 1 = primeira música detectada.
+        # Entrada 0 = mídia visual base; entrada 1 = primeira música detectada.
         primeira_musica = tracks[0].arquivo
         comando = [
             str(FFMPEG),
             "-y",
-            "-stream_loop", "-1",
-            "-i", str(self.config.video_path),
-            "-i", str(primeira_musica),
         ]
+        comando += self.argumentos_entrada_visual_base()
+        comando += ["-i", str(primeira_musica)]
 
         proximo_indice = 2
         indice_fundo = None
@@ -2106,7 +2111,7 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
         self.log(f"Música: {primeira_musica.name}\n")
         self.log(f"Duração da prévia: {segundos_para_legivel(duracao)}\n")
 
-        comando += ["-/filter_complex", str(arquivo_filtro), "-t", str(duracao), "-map", "[vout]", "-map", "[aout]"]
+        comando += ["-filter_complex_script", str(arquivo_filtro), "-t", str(duracao), "-map", "[vout]", "-map", "[aout]"]
         if usar_gpu:
             comando += ["-c:v", "h264_nvenc", "-preset", NVENC_PRESET, "-rc", "vbr", "-cq", NVENC_CQ, "-b:v", "0"]
         else:

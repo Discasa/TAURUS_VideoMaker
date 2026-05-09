@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.24 - 2026-05-09
+
+- Corrigido o teste de 30 segundos para aceitar imagem estática como mídia visual base.
+- Corrigida a opção do FFmpeg para carregar o filtro complexo por arquivo.
+
 ## 8.0.23 - 2026-05-09
 
 - Corrigido o desenho dos botões para garantir formato pílula em toda a interface.
