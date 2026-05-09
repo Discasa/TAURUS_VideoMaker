@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.2 - 2026-05-09
+
+- Reorganizado o layout principal para mostrar os passos 1 e 2 lado a lado.
+- Mantida a ordem vertical dos passos 3 e 4, log e controles.
+
 ## 8.0.1 - 2026-05-09
 
 - Ocultadas as janelas de console abertas por chamadas internas ao FFmpeg e FFprobe.

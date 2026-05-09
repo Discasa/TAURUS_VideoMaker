@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.1.
+Versão 8.0.2.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.1"
+APP_VERSION = "8.0.2"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -3656,7 +3656,7 @@ class MainWindow(QWidget):
         grid_files.addWidget(clear_bg, 2, 0, alignment=Qt.AlignLeft)
         grid_files.addWidget(clear_out, 2, 1, alignment=Qt.AlignLeft)
         card_arquivos.addLayout(grid_files)
-        content_layout.addWidget(card_arquivos)
+        card_arquivos.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
 
         # Render e áudio
         card_render = Card("2. Renderização e áudio")
@@ -3771,7 +3771,13 @@ class MainWindow(QWidget):
         self._atualizar_estado_controles()
 
         card_render.addLayout(grid_render)
-        content_layout.addWidget(card_render)
+        card_render.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+
+        steps_top_row = QHBoxLayout()
+        steps_top_row.setSpacing(6)
+        steps_top_row.addWidget(card_arquivos, 1)
+        steps_top_row.addWidget(card_render, 1)
+        content_layout.addLayout(steps_top_row)
 
         # Aparência
         card_visual = Card("3. Aparência, marca d'água e prévias")
