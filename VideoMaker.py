@@ -810,7 +810,7 @@ class PreviewCanvas(QWidget):
             cfg.margin_left,
             cfg.margin_bottom,
             700,
-            cfg.shadow_opacity,
+            cfg.shadow_opacity if cfg.shadow_enabled else 0.0,
             cfg.shadow_color,
             cfg.background_box,
             cfg.background_color,
@@ -834,7 +834,7 @@ class PreviewCanvas(QWidget):
             intro.margin_x,
             intro.margin_y,
             intro.font_weight,
-            intro.shadow_opacity,
+            intro.shadow_opacity if intro.shadow_enabled else 0.0,
             intro.shadow_color,
             intro.background_box,
             intro.background_color,
@@ -869,7 +869,7 @@ class PreviewCanvas(QWidget):
                 wm.margin_x,
                 wm.margin_y,
                 700,
-                wm.shadow_opacity,
+                wm.shadow_opacity if wm.shadow_enabled else 0.0,
                 wm.shadow_color,
                 wm.background_box,
                 wm.background_color,
@@ -1117,6 +1117,8 @@ class MainUI(QWidget):
         self.font_titles_typ = QDoubleSpinBox(); self.font_titles_typ.setRange(0.1, 20); self.font_titles_typ.setValue(2.2)
         self.font_titles_era = QDoubleSpinBox(); self.font_titles_era.setRange(0.1, 20); self.font_titles_era.setValue(1.6)
         self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.05, 0.95)
+        self.font_titles_shadow_enabled = ToggleSwitch("Sombra do texto")
+        self.font_titles_shadow_enabled.setChecked(True)
         self.font_titles_shadow_color = ColorEdit("#000000")
         self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
         self.font_titles_background_box = ToggleSwitch("Fundo do texto")
@@ -1132,11 +1134,12 @@ class MainUI(QWidget):
         add_row(form, 5, "Digita por", self.font_titles_typ)
         add_row(form, 6, "Apaga por", self.font_titles_era)
         add_row(form, 7, "Opacidade", self.font_titles_opc)
-        add_row(form, 8, "Cor sombra", self.color_row(self.font_titles_shadow_color))
-        add_row(form, 9, "Opac. sombra", self.font_titles_shadow)
-        add_wide(form, 10, self.font_titles_background_box)
-        add_row(form, 11, "Cor fundo", self.color_row(self.font_titles_background_color))
-        add_row(form, 12, "Opac. fundo", self.font_titles_background_opacity)
+        add_wide(form, 8, self.font_titles_shadow_enabled)
+        add_row(form, 9, "Cor sombra", self.color_row(self.font_titles_shadow_color))
+        add_row(form, 10, "Opac. sombra", self.font_titles_shadow)
+        add_wide(form, 11, self.font_titles_background_box)
+        add_row(form, 12, "Cor fundo", self.color_row(self.font_titles_background_color))
+        add_row(form, 13, "Opac. fundo", self.font_titles_background_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1256,6 +1259,8 @@ class MainUI(QWidget):
         self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
         self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
         self.intro_shadow_color = ColorEdit("#000000")
+        self.intro_shadow_enabled = ToggleSwitch("Sombra do texto")
+        self.intro_shadow_enabled.setChecked(True)
         self.intro_shadow_size = DecimalSlider(0.0, 10.0, 0.5, 1.5, decimals=1)
         self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.65)
         self.intro_background_box = ToggleSwitch("Fundo do texto")
@@ -1269,12 +1274,13 @@ class MainUI(QWidget):
         add_row(form, 4, "Opacidade", self.intro_opacity)
         add_row(form, 5, "Posição", self.intro_pos)
         add_row(form, 6, "Margens", margins_widget(self.intro_mx, self.intro_my))
-        add_row(form, 7, "Cor sombra", self.color_row(self.intro_shadow_color))
-        add_row(form, 8, "Sombra", self.intro_shadow_size)
-        add_row(form, 9, "Opac. sombra", self.intro_shadow_opacity)
-        add_wide(form, 10, self.intro_background_box)
-        add_row(form, 11, "Cor fundo", self.color_row(self.intro_background_color))
-        add_row(form, 12, "Opac. fundo", self.intro_box_opacity)
+        add_wide(form, 7, self.intro_shadow_enabled)
+        add_row(form, 8, "Cor sombra", self.color_row(self.intro_shadow_color))
+        add_row(form, 9, "Sombra", self.intro_shadow_size)
+        add_row(form, 10, "Opac. sombra", self.intro_shadow_opacity)
+        add_wide(form, 11, self.intro_background_box)
+        add_row(form, 12, "Cor fundo", self.color_row(self.intro_background_color))
+        add_row(form, 13, "Opac. fundo", self.intro_box_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1328,6 +1334,8 @@ class MainUI(QWidget):
         self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
         self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
         self.wm_shadow_color = ColorEdit("#000000")
+        self.wm_shadow_enabled = ToggleSwitch("Sombra do texto")
+        self.wm_shadow_enabled.setChecked(True)
         self.wm_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
         self.wm_background_box = ToggleSwitch("Fundo do texto")
         self.wm_background_color = ColorEdit("#000000")
@@ -1344,11 +1352,12 @@ class MainUI(QWidget):
         add_row(form, 8, "Opacidade", self.wm_opacity)
         add_row(form, 9, "Posição", self.wm_pos)
         add_row(form, 10, "Margens", margins_widget(self.wm_mx, self.wm_my))
-        add_row(form, 11, "Cor sombra", self.color_row(self.wm_shadow_color))
-        add_row(form, 12, "Opac. sombra", self.wm_shadow)
-        add_wide(form, 13, self.wm_background_box)
-        add_row(form, 14, "Cor fundo", self.color_row(self.wm_background_color))
-        add_row(form, 15, "Opac. fundo", self.wm_background_opacity)
+        add_wide(form, 11, self.wm_shadow_enabled)
+        add_row(form, 12, "Cor sombra", self.color_row(self.wm_shadow_color))
+        add_row(form, 13, "Opac. sombra", self.wm_shadow)
+        add_wide(form, 14, self.wm_background_box)
+        add_row(form, 15, "Cor fundo", self.color_row(self.wm_background_color))
+        add_row(form, 16, "Opac. fundo", self.wm_background_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
@@ -1561,6 +1570,7 @@ class MainUI(QWidget):
             margin_bottom=self.font_titles_my.value(),
             typing_duration=self.font_titles_typ.value(),
             erasing_duration=self.font_titles_era.value(),
+            shadow_enabled=self.font_titles_shadow_enabled.isChecked(),
             shadow_color=limpar_hex(self.font_titles_shadow_color.text(), "#000000"),
             shadow_opacity=self.font_titles_shadow.value(),
             background_box=self.font_titles_background_box.isChecked(),
@@ -1580,6 +1590,7 @@ class MainUI(QWidget):
             position=self.wm_pos.currentData(),
             margin_x=self.wm_mx.value(),
             margin_y=self.wm_my.value(),
+            shadow_enabled=self.wm_shadow_enabled.isChecked(),
             shadow_color=limpar_hex(self.wm_shadow_color.text(), "#000000"),
             shadow_opacity=self.wm_shadow.value(),
             background_box=self.wm_background_box.isChecked(),
@@ -1607,6 +1618,7 @@ class MainUI(QWidget):
             position=self.intro_pos.currentData(),
             margin_x=self.intro_mx.value(),
             margin_y=self.intro_my.value(),
+            shadow_enabled=self.intro_shadow_enabled.isChecked(),
             shadow_color=limpar_hex(self.intro_shadow_color.text(), "#000000"),
             shadow_opacity=self.intro_shadow_opacity.value(),
             shadow_size=self.intro_shadow_size.value(),
@@ -1708,6 +1720,7 @@ class MainUI(QWidget):
         self.font_titles_my.setValue(int(cfg.margin_bottom))
         self.font_titles_typ.setValue(float(cfg.typing_duration))
         self.font_titles_era.setValue(float(cfg.erasing_duration))
+        self.font_titles_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
         self.font_titles_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.font_titles_shadow.setValue(float(cfg.shadow_opacity))
         self.font_titles_background_box.setChecked(bool(getattr(cfg, "background_box", False)))
@@ -1766,6 +1779,7 @@ class MainUI(QWidget):
         self.set_combo_data(self.wm_pos, cfg.position)
         self.wm_mx.setValue(int(cfg.margin_x))
         self.wm_my.setValue(int(cfg.margin_y))
+        self.wm_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
         self.wm_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.wm_shadow.setValue(float(cfg.shadow_opacity))
         self.wm_background_box.setChecked(bool(getattr(cfg, "background_box", False)))
@@ -1788,6 +1802,7 @@ class MainUI(QWidget):
         self.set_combo_data(self.intro_pos, cfg.position)
         self.intro_mx.setValue(int(cfg.margin_x))
         self.intro_my.setValue(int(cfg.margin_y))
+        self.intro_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
         self.intro_shadow_color.setText(getattr(cfg, "shadow_color", "#000000"))
         self.intro_shadow_size.setValue(float(cfg.shadow_size))
         self.intro_shadow_opacity.setValue(float(cfg.shadow_opacity))
@@ -1897,6 +1912,9 @@ class MainUI(QWidget):
         self.wm_font.setEnabled(not image_mode)
         self.wm_font_size.setEnabled(not image_mode)
         self.wm_color.setEnabled(not image_mode)
+        self.wm_shadow_enabled.setEnabled(not image_mode)
+        self.wm_shadow_color.setEnabled(not image_mode)
+        self.wm_shadow.setEnabled(not image_mode)
         self.wm_background_box.setEnabled(not image_mode)
         self.wm_background_color.setEnabled(not image_mode)
         self.wm_background_opacity.setEnabled(not image_mode)

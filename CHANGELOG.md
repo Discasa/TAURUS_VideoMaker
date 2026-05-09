@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.55 - 2026-05-09
+
+- Adicionado toggle para ativar ou desativar a sombra dos textos do vídeo.
+- O render e o preview respeitam a sombra desativada sem perder os valores configurados de cor e opacidade.
+
 ## 8.0.54 - 2026-05-09
 
 - Padronizados os textos adicionados ao vídeo com cor de fonte, cor de sombra, cor de fundo e opacidades em sliders.
