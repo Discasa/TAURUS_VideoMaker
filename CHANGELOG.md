@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.37 - 2026-05-09
+
+- O botão Render/Parar agora controla apenas o preview vivo.
+- Após gerar o preview, o vídeo toca em loop até o usuário clicar em Parar.
+- Durante o render final, o botão de preview fica desabilitado e não cancela exportações.
+
 ## 8.0.36 - 2026-05-09
 
 - O preview central agora pode reproduzir o vídeo real gerado pelo render de teste.

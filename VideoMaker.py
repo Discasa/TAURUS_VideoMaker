@@ -960,6 +960,7 @@ class MainUI(QWidget):
         self.video_widget = QVideoWidget()
         self.video_widget.setStyleSheet("background: #000000; border: none;")
         self.video_player.setVideoOutput(self.video_widget)
+        self.video_player.mediaStatusChanged.connect(self.loop_preview_video)
         self.video_widget.hide()
         preview_layout.addWidget(self.preview, 1)
         preview_layout.addWidget(self.video_widget, 1)
@@ -1408,6 +1409,7 @@ class MainUI(QWidget):
         self.video_player.setSource(QUrl())
         self.video_widget.hide()
         self.preview.show()
+        self.btn_test.setText("Render")
         self.update_preview()
 
     def play_preview_video(self, video_path: Path):
@@ -1417,6 +1419,12 @@ class MainUI(QWidget):
         self.video_widget.show()
         self.video_player.setSource(QUrl.fromLocalFile(str(video_path)))
         self.video_player.play()
+        self.btn_test.setText("Parar")
+
+    def loop_preview_video(self, status):
+        if status == QMediaPlayer.EndOfMedia and self.video_widget.isVisible():
+            self.video_player.setPosition(0)
+            self.video_player.play()
 
     # ---------- Configuração ----------
 
@@ -1887,6 +1895,10 @@ class MainUI(QWidget):
             return
         if self.worker and self.worker.isRunning():
             return
+        if self.video_widget.isVisible():
+            self.show_static_preview()
+            self.lbl_status.setText("Preview parado")
+            return
         self.start_render(teste=True)
 
     def cancelar_render(self):
@@ -1905,7 +1917,6 @@ class MainUI(QWidget):
         self.btn_start.setText("Iniciar")
         self.btn_start.setEnabled(True)
         self.btn_test.setEnabled(True)
-        self.btn_test.setText("Render")
         self.btn_cancel.setEnabled(False)
         if sucesso:
             self.ultimo_video = Path(caminho_saida)
