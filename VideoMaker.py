@@ -42,6 +42,9 @@ from engine import (
 )
 
 CONTROL_HEIGHT = 34
+PREVIEW_HEIGHT_NORMAL = 380
+PREVIEW_HEIGHT_LOG_OPEN = 270
+LOG_HEIGHT_OPEN = 260
 
 try:
     from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl
@@ -980,8 +983,8 @@ class MainUI(QWidget):
         self.video_player.setVideoOutput(self.video_widget)
         self.video_player.mediaStatusChanged.connect(self.loop_preview_video)
         self.video_widget.hide()
-        self.preview.setFixedHeight(380)
-        self.video_widget.setFixedHeight(380)
+        self.preview.setFixedHeight(PREVIEW_HEIGHT_NORMAL)
+        self.video_widget.setFixedHeight(PREVIEW_HEIGHT_NORMAL)
         preview_layout.addStretch(1)
         preview_layout.addWidget(self.preview)
         preview_layout.addWidget(self.video_widget)
@@ -1038,7 +1041,7 @@ class MainUI(QWidget):
 
         self.log_widget = QTextEdit()
         self.log_widget.setReadOnly(True)
-        self.log_widget.setFixedHeight(300)
+        self.log_widget.setFixedHeight(LOG_HEIGHT_OPEN)
         self.log_widget.hide()
         transport_layout.addWidget(self.log_widget)
         layout.addWidget(transport)
@@ -1872,6 +1875,12 @@ class MainUI(QWidget):
         visible = not self.log_widget.isVisible()
         self.log_widget.setVisible(visible)
         self.btn_log.setText("Ocultar log" if visible else "Mostrar log")
+        preview_height = PREVIEW_HEIGHT_LOG_OPEN if visible else PREVIEW_HEIGHT_NORMAL
+        self.preview.setFixedHeight(preview_height)
+        self.video_widget.setFixedHeight(preview_height)
+        self.preview.updateGeometry()
+        self.video_widget.updateGeometry()
+        self.center_panel.updateGeometry()
 
     def start_render(self, teste=False):
         if self.worker and self.worker.isRunning():

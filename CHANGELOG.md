@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.44 - 2026-05-09
+
+- Ajustado o layout quando o log é aberto para evitar truncamento e sobreposição no preview.
+- O preview reduz altura enquanto o log está visível e volta ao tamanho normal quando o log é ocultado.
+
 ## 8.0.43 - 2026-05-09
 
 - Centralizado verticalmente o conjunto de preview e controle de volume no painel central.
