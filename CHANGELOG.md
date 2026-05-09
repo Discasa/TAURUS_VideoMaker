@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.25 - 2026-05-09
+
+- Corrigido artefato visual no topo dos botões em formato pílula.
+- Ajustadas as abas da coluna direita para remover a borda azul clara e escurecer abas inativas.
+- Igualado o fundo interno das abas à cor da interface.
+
 ## 8.0.24 - 2026-05-09
 
 - Corrigido o teste de 30 segundos para aceitar imagem estática como mídia visual base.

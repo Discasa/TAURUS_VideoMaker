@@ -156,26 +156,34 @@ QComboBox QAbstractItemView {
     selection-background-color: #2F86FF;
     outline: none;
 }
+QTabWidget, QTabWidget QWidget {
+    background: #101826;
+}
 QTabWidget::pane {
     border: 1px solid #26354D;
-    border-radius: 16px;
+    border-radius: 0px;
     background: #101826;
     top: -1px;
 }
 QTabBar::tab {
-    background: #111B2B;
-    color: #9FB4D2;
+    background: #0A101A;
+    color: #8FA4C4;
     border: 1px solid #26354D;
-    border-bottom: none;
+    border-bottom: 1px solid #26354D;
     padding: 8px 8px;
     min-width: 55px;
     border-top-left-radius: 11px;
     border-top-right-radius: 11px;
 }
 QTabBar::tab:selected {
-    background: #17263C;
+    background: #101826;
     color: #FFFFFF;
-    border-color: #4B7EC5;
+    border-color: #26354D;
+    border-bottom-color: #101826;
+}
+QTabBar::tab:!selected {
+    background: #0B111C;
+    color: #8FA4C4;
 }
 QProgressBar {
     background: #0D1420;
@@ -298,11 +306,11 @@ class ActionButton(QPushButton):
 
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        rect = self.rect().adjusted(0, 0, -1, -1)
+        rect = QRectF(1.0, 1.0, self.width() - 2.0, self.height() - 2.0)
         radius = rect.height() / 2
         painter.setPen(QPen(QColor(border), 1))
         painter.setBrush(QColor(bg))
-        painter.drawRoundedRect(QRectF(rect), radius, radius)
+        painter.drawRoundedRect(rect, radius, radius)
 
         font = self.font()
         font.setWeight(QFont.Weight.Bold)
