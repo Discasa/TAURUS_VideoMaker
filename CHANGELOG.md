@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.54 - 2026-05-09
+
+- Padronizados os textos adicionados ao vídeo com cor de fonte, cor de sombra, cor de fundo e opacidades em sliders.
+- Adicionado fundo configurável aos títulos das músicas e à marca d'água em texto.
+- A opção de fundo da intro agora permite escolher cor e opacidade.
+
 ## 8.0.53 - 2026-05-09
 
 - Melhorado o aproveitamento horizontal dos formulários na coluna de ajustes.

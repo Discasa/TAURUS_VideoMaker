@@ -31,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.53"
+APP_VERSION = "8.0.54"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -101,6 +101,9 @@ class FonteTextoConfig:
     erasing_duration: float = 1.6
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
+    background_box: bool = False
+    background_color: str = "#000000"
+    background_opacity: float = 0.35
 
 
 @dataclass
@@ -122,6 +125,9 @@ class WatermarkConfig:
     margin_y: int = 42
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
+    background_box: bool = False
+    background_color: str = "#000000"
+    background_opacity: float = 0.35
 
 
 @dataclass
@@ -162,6 +168,7 @@ class IntroTextConfig:
     shadow_opacity: float = 0.65
     shadow_size: float = 1.4
     background_box: bool = False
+    background_color: str = "#000000"
     box_opacity: float = 0.35
 
 
@@ -1012,6 +1019,12 @@ class RenderEngine:
             "shadowx=2",
             "shadowy=2",
         ]
+        if cfg.background_box:
+            opcoes += [
+                "box=1",
+                f"boxcolor={cor_drawtext(cfg.background_color, cfg.background_opacity)}",
+                "boxborderw=14",
+            ]
         return "drawtext=" + ":".join(opcoes)
 
     def criar_overlay_watermark_imagem(self, entrada_video: str, indice_imagem: int) -> list[str]:
@@ -1123,10 +1136,10 @@ class RenderEngine:
             f"enable='between(t,{inicio:.3f},{fim:.3f})'",
         ]
 
-        if intro and getattr(cfg, "background_box", False):
+        if getattr(cfg, "background_box", False):
             opcoes += [
                 "box=1",
-                f"boxcolor=black@{float(getattr(cfg, 'box_opacity', 0.35)):.3f}",
+                f"boxcolor={cor_drawtext(getattr(cfg, 'background_color', '#000000'), float(getattr(cfg, 'box_opacity', getattr(cfg, 'background_opacity', 0.35))))}",
                 "boxborderw=14",
             ]
 
