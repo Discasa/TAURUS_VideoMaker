@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.42 - 2026-05-09
+
+- Removido o fundo próprio dos sliders para combinar com o painel onde estão inseridos.
+- Aproximado o controle de volume do preview da área de vídeo.
+
 ## 8.0.41 - 2026-05-09
 
 - Ajustada a descrição da opção de renderização para ocupar duas linhas sem cortar texto.

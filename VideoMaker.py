@@ -238,6 +238,7 @@ QProgressBar::chunk {
     border-radius: 9px;
 }
 QSlider {
+    background: transparent;
     min-height: 24px;
     max-height: 24px;
 }
@@ -720,7 +721,7 @@ class PreviewCanvas(QWidget):
         painter.drawRect(frame)
 
     def _video_rect(self) -> QRectF:
-        area = self.rect().adjusted(16, 16, -16, -16)
+        area = self.rect().adjusted(16, 12, -16, -4)
         ratio = 16 / 9
         width = area.width()
         height = int(width / ratio)
@@ -728,7 +729,7 @@ class PreviewCanvas(QWidget):
             height = area.height()
             width = int(height * ratio)
         x = area.x() + (area.width() - width) / 2
-        y = area.y() + (area.height() - height) / 2
+        y = area.y() + area.height() - height
         return QRectF(x, y, width, height)
 
     def _positioned_rect(self, frame: QRectF, size: QSize, position: str, margin_x: int, margin_y: int) -> QRectF:
@@ -959,6 +960,7 @@ class MainUI(QWidget):
         preview_shell.setObjectName("PreviewShell")
         preview_layout = QVBoxLayout(preview_shell)
         preview_layout.setContentsMargins(12, 10, 12, 12)
+        preview_layout.setSpacing(4)
         header = QHBoxLayout()
         title = QLabel("Preview")
         title.setObjectName("ColumnTitle")
@@ -981,6 +983,7 @@ class MainUI(QWidget):
         preview_layout.addWidget(self.preview, 1)
         preview_layout.addWidget(self.video_widget, 1)
         volume_row = QHBoxLayout()
+        volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.addStretch(1)
         self.preview_volume_label = QLabel("50%")
         self.preview_volume_label.setObjectName("Subtle")
