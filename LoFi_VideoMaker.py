@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.6.
+Versão 8.0.7.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.6"
+APP_VERSION = "8.0.7"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -2415,8 +2415,8 @@ class Card(QFrame):
         super().__init__(parent)
         self.setObjectName("Card")
         self.layout_principal = QVBoxLayout(self)
-        self.layout_principal.setContentsMargins(10, 6, 10, 8)
-        self.layout_principal.setSpacing(5)
+        self.layout_principal.setContentsMargins(10, 0, 10, 8)
+        self.layout_principal.setSpacing(8)
 
         label = QLabel(titulo)
         label.setObjectName("CardTitle")
@@ -2447,7 +2447,8 @@ class PathPicker(QWidget):
         self.line.setPlaceholderText("Nenhum caminho escolhido")
         self.line.setReadOnly(True)
         self.line.setMinimumHeight(24)
-        self.line.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.line.setFixedWidth(300)
+        self.line.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.button = PillButton("Escolher", "normal")
         self.button.setFixedWidth(76)
         self.button.clicked.connect(self.escolher)
@@ -2456,6 +2457,10 @@ class PathPicker(QWidget):
         layout.addWidget(self.line, 0, 1)
         layout.addWidget(self.button, 0, 2)
         layout.setColumnStretch(1, 1)
+
+    def ocultar_rotulo(self):
+        self.label.hide()
+        self.label.setFixedWidth(0)
 
     def escolher(self):
         if self.mode == "file":
@@ -3422,6 +3427,11 @@ QFrame#Card {
     border: 1px solid #414348;
     border-radius: 12px;
 }
+QFrame#SubCard {
+    background: #242528;
+    border: 1px solid #3A3D42;
+    border-radius: 10px;
+}
 QFrame#WatermarkPreview {
     background: #191A1C;
     border: 1px solid #414348;
@@ -3448,6 +3458,10 @@ QLabel#CardTitle, QLabel#DialogTitle, QLabel#DialogTitleText {
 QLabel#FieldLabel {
     color: #C0C2C5;
     font-weight: 700;
+}
+QLabel#SubCardTitle {
+    color: #E8EAEE;
+    font-weight: 800;
 }
 QLineEdit, QTextEdit, QSpinBox, QDoubleSpinBox, QComboBox, QFontComboBox {
     background: #1B1C1E;
@@ -3677,12 +3691,16 @@ class MainWindow(QWidget):
             "file",
             "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)",
         )
+        self.bg_audio_picker.ocultar_rotulo()
         self.output_picker = PathPicker("Pasta de saída", "folder")
         self.output_picker.line.setPlaceholderText("Automática: render_AAAA-MM-DD_HH-MM-SS")
 
-        clear_bg = PillButton("Limpar som de fundo", "normal")
+        clear_bg = PillButton("Limpar", "normal")
+        clear_bg.setFixedWidth(76)
         clear_bg.clicked.connect(lambda: self.bg_audio_picker.set_path(None))
 
+        audio_title = QLabel("Som de fundo opcional")
+        audio_title.setObjectName("SubCardTitle")
         self.bg_volume_title = QLabel("Volume")
         self.bg_volume_title.setObjectName("FieldLabel")
         self.bg_volume = QSlider(Qt.Horizontal)
@@ -3698,20 +3716,35 @@ class MainWindow(QWidget):
         self.bg_volume_value.setFixedWidth(38)
         self.bg_volume_value.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
 
+        audio_subcard = QFrame()
+        audio_subcard.setObjectName("SubCard")
+        audio_layout = QGridLayout(audio_subcard)
+        audio_layout.setContentsMargins(10, 8, 10, 8)
+        audio_layout.setHorizontalSpacing(8)
+        audio_layout.setVerticalSpacing(6)
+
         volume_row = QHBoxLayout()
         volume_row.setContentsMargins(0, 0, 0, 0)
         volume_row.setSpacing(8)
-        volume_row.addStretch(1)
         volume_row.addWidget(self.bg_volume_title)
         volume_row.addWidget(self.bg_volume)
         volume_row.addWidget(self.bg_volume_value)
-        volume_row.addWidget(clear_bg)
+
+        audio_path_row = QHBoxLayout()
+        audio_path_row.setContentsMargins(0, 0, 0, 0)
+        audio_path_row.setSpacing(8)
+        audio_path_row.addWidget(self.bg_audio_picker, 1)
+        audio_path_row.addWidget(clear_bg)
+
+        audio_layout.addWidget(audio_title, 0, 0)
+        audio_layout.addLayout(volume_row, 0, 1, alignment=Qt.AlignRight)
+        audio_layout.addLayout(audio_path_row, 1, 0, 1, 2)
+        audio_layout.setColumnStretch(0, 1)
 
         grid_files.addWidget(self.video_picker, 0, 0, 1, 2)
         grid_files.addWidget(self.music_folder_picker, 1, 0, 1, 2)
-        grid_files.addWidget(self.bg_audio_picker, 2, 0, 1, 2)
-        grid_files.addLayout(volume_row, 3, 0, 1, 2)
-        grid_files.addWidget(self.output_picker, 4, 0, 1, 2)
+        grid_files.addWidget(audio_subcard, 2, 0, 1, 2)
+        grid_files.addWidget(self.output_picker, 3, 0, 1, 2)
         grid_files.setColumnStretch(0, 1)
         card_arquivos.addLayout(grid_files)
         card_arquivos.setMinimumHeight(285)
@@ -3720,8 +3753,8 @@ class MainWindow(QWidget):
         # Render e áudio
         card_render = Card("2. Renderização e áudio")
         # Este card é propositalmente mais compacto para reduzir o scroll da janela.
-        card_render.layout_principal.setContentsMargins(12, 7, 12, 8)
-        card_render.layout_principal.setSpacing(5)
+        card_render.layout_principal.setContentsMargins(10, 0, 10, 8)
+        card_render.layout_principal.setSpacing(8)
 
         grid_render = QGridLayout()
         grid_render.setHorizontalSpacing(10)

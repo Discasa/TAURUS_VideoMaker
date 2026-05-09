@@ -1,5 +1,11 @@
 # Histórico de Mudanças
 
+## 8.0.7 - 2026-05-09
+
+- Reduzida a margem superior dos cards para aproximar os títulos do topo.
+- Criado um subcard mais escuro no passo 1 para agrupar as opções de som de fundo.
+- Reorganizado o som de fundo em duas linhas: título e volume na primeira; caminho, escolher e limpar na segunda.
+
 ## 8.0.6 - 2026-05-09
 
 - Alinhados os campos de caminho do passo 1 com largura consistente.
