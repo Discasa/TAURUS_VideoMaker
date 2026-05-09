@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.53 - 2026-05-09
+
+- Melhorado o aproveitamento horizontal dos formulários na coluna de ajustes.
+- Mantido o conteúdo centralizado, com campos mais largos e espaçamento mais equilibrado.
+
 ## 8.0.52 - 2026-05-09
 
 - Atualizada a documentação para apontar para o repositório `Discasa/TAURUS_VideoMaker`.

@@ -42,6 +42,7 @@ from engine import (
 )
 
 CONTROL_HEIGHT = 34
+RIGHT_FORM_WIDTH = 430
 PREVIEW_HEIGHT_NORMAL = 380
 PREVIEW_HEIGHT_LOG_OPEN = 270
 PREVIEW_ASPECT_RATIO = 16 / 9
@@ -358,9 +359,9 @@ def section(title: str) -> tuple[QFrame, QVBoxLayout]:
 
 def setup_form(form: QGridLayout):
     form.setContentsMargins(0, 0, 0, 0)
-    form.setHorizontalSpacing(10)
+    form.setHorizontalSpacing(12)
     form.setVerticalSpacing(8)
-    form.setColumnMinimumWidth(0, 112)
+    form.setColumnMinimumWidth(0, 104)
     form.setColumnStretch(1, 1)
 
 
@@ -388,7 +389,7 @@ def centered_widget(widget: QWidget, max_width: int = 360) -> QWidget:
     return wrapper
 
 
-def centered_layout(inner_layout, max_width: int = 360) -> QWidget:
+def centered_layout(inner_layout, max_width: int = RIGHT_FORM_WIDTH) -> QWidget:
     box = QWidget()
     box.setMaximumWidth(max_width)
     box.setLayout(inner_layout)
