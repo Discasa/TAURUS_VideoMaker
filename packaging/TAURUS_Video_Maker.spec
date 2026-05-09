@@ -33,7 +33,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name="LoFi_VideoMaker",
+    name="TAURUS Video Maker",
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

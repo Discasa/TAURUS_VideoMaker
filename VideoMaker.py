@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 """
-Interface PySide6 do LoFi VideoMaker.
+Interface PySide6 do TAURUS Video Maker.
 
 A lógica de renderização, FFmpeg e persistência ficam em engine.py.
 """
@@ -86,6 +86,7 @@ QWidget {
 QFrame#LeftPanel, QFrame#RightPanel {
     background: #101826;
     border: 1px solid #233047;
+    border-radius: 14px;
 }
 QFrame#CenterPanel {
     background: #0B111C;
@@ -93,7 +94,7 @@ QFrame#CenterPanel {
 QFrame#Section, QFrame#Transport, QFrame#PreviewShell {
     background: #131D2B;
     border: 1px solid #26354D;
-    border-radius: 8px;
+    border-radius: 18px;
 }
 QLabel#Brand {
     color: #F6FAFF;
@@ -119,9 +120,9 @@ QLabel {
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 6px;
-    min-height: 30px;
-    padding: 4px 8px;
+    border-radius: 16px;
+    min-height: 32px;
+    padding: 4px 12px;
     selection-background-color: #2F86FF;
 }
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus {
@@ -136,8 +137,8 @@ QComboBox::drop-down {
     width: 28px;
     background: #16243A;
     border-left: 1px solid #31415C;
-    border-top-right-radius: 6px;
-    border-bottom-right-radius: 6px;
+    border-top-right-radius: 16px;
+    border-bottom-right-radius: 16px;
 }
 QComboBox::down-arrow {
     image: none;
@@ -151,12 +152,13 @@ QComboBox::down-arrow {
 QComboBox QAbstractItemView {
     background: #101826;
     border: 1px solid #31415C;
+    border-radius: 10px;
     selection-background-color: #2F86FF;
     outline: none;
 }
 QTabWidget::pane {
     border: 1px solid #26354D;
-    border-radius: 8px;
+    border-radius: 16px;
     background: #101826;
     top: -1px;
 }
@@ -167,8 +169,8 @@ QTabBar::tab {
     border-bottom: none;
     padding: 8px 8px;
     min-width: 55px;
-    border-top-left-radius: 7px;
-    border-top-right-radius: 7px;
+    border-top-left-radius: 11px;
+    border-top-right-radius: 11px;
 }
 QTabBar::tab:selected {
     background: #17263C;
@@ -178,13 +180,13 @@ QTabBar::tab:selected {
 QProgressBar {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 6px;
+    border-radius: 10px;
     min-height: 16px;
     text-align: center;
 }
 QProgressBar::chunk {
     background: #2F86FF;
-    border-radius: 5px;
+    border-radius: 9px;
 }
 QSlider::groove:horizontal {
     background: #0D1420;
@@ -197,7 +199,7 @@ QSlider::sub-page:horizontal {
     border-radius: 4px;
 }
 QSlider::handle:horizontal {
-    background: #A9D3FF;
+    background: #2F86FF;
     border: 1px solid #6FB1FF;
     width: 15px;
     height: 15px;
@@ -207,7 +209,7 @@ QSlider::handle:horizontal {
 QTableWidget {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 6px;
+    border-radius: 12px;
     gridline-color: #26354D;
 }
 QHeaderView::section {
@@ -286,7 +288,7 @@ class ActionButton(QPushButton):
                 background: {bg};
                 color: {text};
                 border: 1px solid {border};
-                border-radius: 7px;
+                border-radius: 18px;
                 padding: 5px 12px;
                 font-weight: 700;
             }}
@@ -365,9 +367,9 @@ class ColorEdit(QLineEdit):
             QLineEdit {{
                 background: #0D1420;
                 border: 1px solid #31415C;
-                border-radius: 6px;
-                min-height: 30px;
-                padding: 4px 8px;
+                border-radius: 16px;
+                min-height: 32px;
+                padding: 4px 12px;
                 color: {color};
                 font-weight: 800;
             }}
@@ -651,7 +653,7 @@ class PreviewCanvas(QWidget):
 class MainUI(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(f"Criador de Vídeo Lo-fi {APP_VERSION}")
+        self.setWindowTitle(f"TAURUS Video Maker {APP_VERSION}")
         self.resize(1520, 820)
         self.setMinimumSize(1420, 740)
         self.setStyleSheet(STYLE_PRIME)
@@ -700,7 +702,7 @@ class MainUI(QWidget):
         layout.setContentsMargins(14, 14, 14, 14)
         layout.setSpacing(10)
 
-        brand = QLabel("LoFi VideoMaker")
+        brand = QLabel("TAURUS Video Maker")
         brand.setObjectName("Brand")
         subtitle = QLabel("Fluxo do projeto")
         subtitle.setObjectName("Subtle")
@@ -716,24 +718,6 @@ class MainUI(QWidget):
         media_layout.addWidget(self.music_picker)
         layout.addWidget(media)
 
-        ambience, ambience_layout = section("Som ambiente opcional")
-        self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
-        self.bg_vol_slider = QSlider(Qt.Horizontal)
-        self.bg_vol_slider.setRange(0, 20)
-        self.bg_vol_slider.setValue(3)
-        self.bg_vol_label = QLabel("30%")
-        self.bg_vol_slider.valueChanged.connect(lambda value: self.bg_vol_label.setText(f"{value * 10}%"))
-        vol_row = QHBoxLayout()
-        vol_row.addWidget(QLabel("Volume"))
-        vol_row.addWidget(self.bg_vol_slider, 1)
-        vol_row.addWidget(self.bg_vol_label)
-        btn_clear_bg = ActionButton("Limpar", "ghost")
-        btn_clear_bg.clicked.connect(lambda: self.bg_picker.set_path(""))
-        ambience_layout.addWidget(self.bg_picker)
-        ambience_layout.addLayout(vol_row)
-        ambience_layout.addWidget(btn_clear_bg)
-        layout.addWidget(ambience)
-
         output, output_layout = section("Saída")
         self.out_picker = PathPicker("folder", placeholder="Automática: render_DATA_HORA")
         self.btn_open_output = ActionButton("Abrir pasta", "ghost")
@@ -741,6 +725,15 @@ class MainUI(QWidget):
         output_layout.addWidget(self.out_picker)
         output_layout.addWidget(self.btn_open_output)
         layout.addWidget(output)
+
+        render, render_layout = section("Renderização")
+        self.set_gpu = ToggleSwitch("Usar GPU NVIDIA/NVENC")
+        self.set_gpu.setChecked(True)
+        render_note = QLabel("FFmpeg local incluído no projeto")
+        render_note.setObjectName("Subtle")
+        render_layout.addWidget(self.set_gpu)
+        render_layout.addWidget(render_note)
+        layout.addWidget(render)
         layout.addStretch(1)
         return panel
 
@@ -774,16 +767,13 @@ class MainUI(QWidget):
         transport_layout.setContentsMargins(12, 10, 12, 12)
         transport_layout.setSpacing(8)
 
-        progress_row = QHBoxLayout()
-        self.lbl_status = QLabel("Pronto.")
-        self.lbl_status.setObjectName("Subtle")
+        self.lbl_status = QLabel("")
+        self.lbl_status.hide()
         self.prog_bar = QProgressBar()
         self.prog_bar.setRange(0, 100)
         self.prog_bar.setValue(0)
         self.prog_bar.setTextVisible(False)
-        progress_row.addWidget(self.lbl_status)
-        progress_row.addWidget(self.prog_bar, 1)
-        transport_layout.addLayout(progress_row)
+        transport_layout.addWidget(self.prog_bar)
 
         buttons = QHBoxLayout()
         self.btn_log = ActionButton("Mostrar log", "ghost")
@@ -829,7 +819,6 @@ class MainUI(QWidget):
         self.tabs.addTab(self.build_intro_tab(), "Intro")
         self.tabs.addTab(self.build_watermark_tab(), "Marca")
         self.tabs.addTab(self.build_audio_tab(), "Áudio")
-        self.tabs.addTab(self.build_render_tab(), "Render")
         self.tabs.tabBar().setUsesScrollButtons(False)
         layout.addWidget(self.tabs, 1)
         return panel
@@ -1031,6 +1020,26 @@ class MainUI(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(12, 12, 12, 12)
+        layout.setSpacing(10)
+
+        ambience, ambience_layout = section("Som ambiente opcional")
+        self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
+        self.bg_vol_slider = QSlider(Qt.Horizontal)
+        self.bg_vol_slider.setRange(0, 20)
+        self.bg_vol_slider.setValue(3)
+        self.bg_vol_label = QLabel("30%")
+        self.bg_vol_slider.valueChanged.connect(lambda value: self.bg_vol_label.setText(f"{value * 10}%"))
+        volume_row = QHBoxLayout()
+        volume_row.addWidget(QLabel("Volume"))
+        volume_row.addWidget(self.bg_vol_slider, 1)
+        volume_row.addWidget(self.bg_vol_label)
+        btn_clear_bg = ActionButton("Limpar", "ghost", 92)
+        btn_clear_bg.clicked.connect(lambda: self.bg_picker.set_path(""))
+        ambience_layout.addWidget(self.bg_picker)
+        ambience_layout.addLayout(volume_row)
+        ambience_layout.addWidget(btn_clear_bg, 0, Qt.AlignLeft)
+        layout.addWidget(ambience)
+
         form = QGridLayout()
         setup_form(form)
         self.set_fadein = ToggleSwitch("Fade in")
@@ -1050,22 +1059,6 @@ class MainUI(QWidget):
         add_wide(form, 4, self.set_norm)
         add_row(form, 5, "Target LUFS", self.set_lufs)
         add_row(form, 6, "True peak", self.set_peak)
-        layout.addLayout(form)
-        layout.addStretch(1)
-        return tab
-
-    def build_render_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(12, 12, 12, 12)
-        form = QGridLayout()
-        setup_form(form)
-        self.set_gpu = ToggleSwitch("Usar GPU NVIDIA/NVENC")
-        self.set_gpu.setChecked(True)
-        add_wide(form, 0, self.set_gpu)
-        note = QLabel("Render final usa o FFmpeg local incluído no projeto.")
-        note.setObjectName("Subtle")
-        add_wide(form, 1, note)
         layout.addLayout(form)
         layout.addStretch(1)
         return tab

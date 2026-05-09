@@ -1,12 +1,12 @@
-# Documentação do LoFi VideoMaker
+# Documentação do TAURUS Video Maker
 
 ## Objetivo
 
-O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, uma sequência de músicas, áudio de fundo opcional, textos, marca d'água e efeitos de introdução. O processamento de mídia é feito com FFmpeg.
+O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual base, uma sequência de músicas, áudio de fundo opcional, textos, marca d'água e efeitos de introdução. O processamento de mídia é feito com FFmpeg.
 
 ## Versão do Script
 
-A versão atual do script é `8.0.20`.
+A versão atual do script é `8.0.21`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
@@ -100,7 +100,7 @@ O script agora usa dois conceitos diferentes de caminho:
 
 Em modo fonte, as duas apontam para a pasta do projeto. Em modo executável empacotado com PyInstaller, a pasta de recursos aponta para o diretório temporário interno extraído pelo pacote, enquanto configurações e logs continuam ao lado do executável final.
 
-O arquivo [packaging/LoFi_VideoMaker.spec](packaging/LoFi_VideoMaker.spec) já declara os binários do FFmpeg como recursos internos no caminho `ffmpeg/bin/`.
+O arquivo [packaging/TAURUS_Video_Maker.spec](packaging/TAURUS_Video_Maker.spec) já declara os binários do FFmpeg como recursos internos no caminho `ffmpeg/bin/`.
 
 Quando chegar a hora de gerar o executável, o comando esperado é:
 
@@ -108,7 +108,7 @@ Quando chegar a hora de gerar o executável, o comando esperado é:
 .\build_executable.ps1
 ```
 
-O resultado será gerado em `dist/LoFi_VideoMaker.exe`.
+O resultado será gerado em `dist/TAURUS Video Maker.exe`.
 
 ## Janelas de Console do FFmpeg
 

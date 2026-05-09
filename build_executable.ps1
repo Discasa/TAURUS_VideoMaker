@@ -7,6 +7,6 @@ if (-not (Test-Path ".\.venv\Scripts\python.exe")) {
 }
 
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
-.\.venv\Scripts\python.exe -m PyInstaller .\packaging\LoFi_VideoMaker.spec --clean --noconfirm
+.\.venv\Scripts\python.exe -m PyInstaller .\packaging\TAURUS_Video_Maker.spec --clean --noconfirm
 
-Write-Host "Executável gerado em: dist\LoFi_VideoMaker.exe"
+Write-Host "Executável gerado em: dist\TAURUS Video Maker.exe"

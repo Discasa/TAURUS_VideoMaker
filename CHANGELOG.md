@@ -1,5 +1,13 @@
 # Histórico de Mudanças
 
+## 8.0.21 - 2026-05-09
+
+- Renomeado o aplicativo e a documentação para `TAURUS Video Maker`.
+- Aplicado visual mais arredondado em botões, campos, abas, cards e barra de progresso.
+- Movido o som ambiente opcional para a aba Áudio.
+- Movida a opção de GPU NVIDIA/NVENC para a coluna esquerda e removida a aba Render.
+- Removido o rótulo de status da área inferior; a barra de progresso agora ocupa a largura disponível.
+
 ## 8.0.20 - 2026-05-09
 
 - Removido o botão `Exemplo` da aba de frases da intro e a lógica associada.

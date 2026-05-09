@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 """
-Backend do LoFi VideoMaker.
+Backend do TAURUS Video Maker.
 
 Este módulo concentra configurações, persistência, controle de processo,
 integração com FFmpeg, RenderEngine e WorkerRender. A interface gráfica fica em
@@ -32,7 +32,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.20"
+APP_VERSION = "8.0.21"
 
 
 def obter_diretorio_aplicacao() -> Path:
