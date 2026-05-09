@@ -1077,6 +1077,7 @@ class MainUI(QWidget):
         layout.addWidget(title)
 
         self.tabs = QTabWidget()
+        self.tabs.addTab(self.build_title_tracks_tab(), "Músicas")
         self.tabs.addTab(self.build_titles_tab(), "Títulos")
         self.tabs.addTab(self.build_intro_tab(), "Intro")
         self.tabs.addTab(self.build_watermark_tab(), "Marca")
@@ -1086,17 +1087,7 @@ class MainUI(QWidget):
         return panel
 
     def build_titles_tab(self) -> QWidget:
-        tab = QWidget()
-        layout = QVBoxLayout(tab)
-        layout.setContentsMargins(8, 8, 8, 8)
-        layout.setSpacing(8)
-
-        self.title_tabs = QTabWidget()
-        self.title_tabs.addTab(self.build_title_font_tab(), "Fonte")
-        self.title_tabs.addTab(self.build_title_tracks_tab(), "Músicas")
-        self.title_tabs.tabBar().setUsesScrollButtons(False)
-        layout.addWidget(self.title_tabs)
-        return tab
+        return self.build_title_font_tab()
 
     def build_title_font_tab(self) -> QWidget:
         tab = QWidget()

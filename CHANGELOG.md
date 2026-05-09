@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.50 - 2026-05-09
+
+- Promovida a tela Músicas para aba principal antes de Títulos.
+- A aba Títulos agora exibe diretamente as configurações de fonte, sem subabas internas.
+
 ## 8.0.49 - 2026-05-09
 
 - Simplificada a descrição da opção de renderização para uma linha.
