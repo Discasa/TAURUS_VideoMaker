@@ -4,7 +4,7 @@ LoFi VideoMaker é um aplicativo de desktop para Windows que cria vídeos lo-fi 
 
 ## Versão Atual
 
-O script está na versão `8.0.9`.
+O script está na versão `8.0.10`.
 
 A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
 
@@ -32,7 +32,7 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 cd F:\scripts\GitHub\LoFi_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\LoFi_VideoMaker.py
+.\.venv\Scripts\python.exe .\VideoMaker.py
 ```
 
 O script espera encontrar o FFmpeg nestes caminhos dentro do projeto:
@@ -50,7 +50,8 @@ Se a pasta de saída ficar vazia na interface, o vídeo será salvo automaticame
 
 ```text
 LoFi_VideoMaker/
-  LoFi_VideoMaker.py          Aplicativo principal em PySide6
+  VideoMaker.py               Interface principal em PySide6
+  engine.py                   Backend de renderização, FFmpeg e worker
   requirements.txt            Dependências de execução
   requirements-dev.txt        Dependências de empacotamento
   build_executable.ps1        Preparação futura do executável

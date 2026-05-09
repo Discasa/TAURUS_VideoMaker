@@ -13,7 +13,7 @@ binaries = [
 ]
 
 a = Analysis(
-    [str(ROOT / "LoFi_VideoMaker.py")],
+    [str(ROOT / "VideoMaker.py")],
     pathex=[str(ROOT)],
     binaries=binaries,
     datas=[],

@@ -1,5 +1,13 @@
 # Histórico de Mudanças
 
+## 8.0.10 - 2026-05-09
+
+- Renomeado `LoFi_VideoMaker.py` para `engine.py`.
+- Renomeado `VM.py` para `VideoMaker.py`.
+- Separada a arquitetura para manter o backend de renderização em `engine.py` e a interface em `VideoMaker.py`.
+- Atualizado o empacotamento para usar `VideoMaker.py` como ponto de entrada.
+- Atualizada a documentação para refletir a nova estrutura.
+
 ## 8.0.9 - 2026-05-09
 
 - Criados subcards no passo 3 para separar edição e testes antes de renderizar.

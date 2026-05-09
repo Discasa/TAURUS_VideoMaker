@@ -6,13 +6,13 @@ O LoFi VideoMaker monta vídeos lo-fi longos combinando uma mídia visual base, 
 
 ## Versão do Script
 
-A versão atual do script é `8.0.9`.
+A versão atual do script é `8.0.10`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
 Sempre que a versão do script mudar, atualize:
 
-- a constante `APP_VERSION` em [LoFi_VideoMaker.py](LoFi_VideoMaker.py);
+- a constante `APP_VERSION` em [engine.py](engine.py);
 - esta seção da documentação;
 - o [CHANGELOG.md](CHANGELOG.md).
 
@@ -24,10 +24,17 @@ Use PowerShell na pasta do projeto:
 cd F:\scripts\GitHub\LoFi_VideoMaker
 py -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.txt
-.\.venv\Scripts\python.exe .\LoFi_VideoMaker.py
+.\.venv\Scripts\python.exe .\VideoMaker.py
 ```
 
-Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [LoFi_VideoMaker.py](LoFi_VideoMaker.py).
+Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [VideoMaker.py](VideoMaker.py).
+
+## Organização do Código
+
+O projeto agora separa interface e backend:
+
+- [VideoMaker.py](VideoMaker.py) contém somente a interface PySide6, o mapeamento da UI para a configuração e os controles de tela.
+- [engine.py](engine.py) contém o backend: dataclasses de configuração, persistência em JSON, controle de processo, chamadas de FFmpeg/FFprobe, `RenderEngine` e `WorkerRender`.
 
 ## FFmpeg Local
 
@@ -114,7 +121,7 @@ A partir da versão `8.0.1`, todas as chamadas internas de FFmpeg e FFprobe usam
 Depois de alterar o código:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile .\LoFi_VideoMaker.py
+.\.venv\Scripts\python.exe -m py_compile .\engine.py .\VideoMaker.py
 .\ffmpeg\bin\ffmpeg.exe -hide_banner -encoders
 ```
 
