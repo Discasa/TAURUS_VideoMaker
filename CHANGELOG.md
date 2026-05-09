@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.29 - 2026-05-09
+
+- Corrigidos campos e seletores que ainda apareciam com cantos quadrados na aba Marca.
+- Ajustado o subcontrole da seta dos seletores para preservar o formato pílula.
+
 ## 8.0.28 - 2026-05-09
 
 - Corrigidos defeitos visuais nos cantos da tabela de frases da intro.

@@ -122,11 +122,30 @@ QLabel {
 QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox, QTextEdit {
     background: #0D1420;
     border: 1px solid #31415C;
-    border-radius: 16px;
-    min-height: 24px;
-    max-height: 34px;
-    padding: 2px 12px;
+    border-radius: 17px;
+    min-height: 32px;
+    max-height: 32px;
+    padding: 0px 12px;
     selection-background-color: #2F86FF;
+}
+QLineEdit {
+    border-radius: 17px;
+}
+QSpinBox, QDoubleSpinBox {
+    border-radius: 17px;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+QComboBox {
+    border-radius: 17px;
+    padding-left: 12px;
+    padding-right: 36px;
+}
+QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {
+    background: #0D1420;
+    border: 1px solid #26354D;
+    border-radius: 17px;
+    color: #7C8DA8;
 }
 QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus {
     border: 1px solid #5EA0FF;
@@ -137,11 +156,13 @@ QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSp
     border: none;
 }
 QComboBox::drop-down {
-    width: 28px;
-    background: #16243A;
-    border-left: 1px solid #31415C;
-    border-top-right-radius: 16px;
-    border-bottom-right-radius: 16px;
+    subcontrol-origin: padding;
+    subcontrol-position: top right;
+    width: 32px;
+    background: transparent;
+    border: none;
+    border-top-right-radius: 17px;
+    border-bottom-right-radius: 17px;
 }
 QComboBox::down-arrow {
     image: none;
@@ -159,7 +180,7 @@ QComboBox QAbstractItemView {
     selection-background-color: #2F86FF;
     outline: none;
 }
-QTabWidget, QTabWidget QWidget {
+QTabWidget {
     background: #101826;
 }
 QTabWidget::pane {
@@ -461,16 +482,22 @@ class ColorEdit(QLineEdit):
             QLineEdit {{
                 background: #0D1420;
                 border: 1px solid #31415C;
-                border-radius: 16px;
-                min-height: 24px;
-                max-height: 34px;
-                padding: 2px 12px;
+                border-radius: 17px;
+                min-height: 32px;
+                max-height: 32px;
+                padding: 0px 12px;
                 color: {color};
                 font-weight: 800;
             }}
             QLineEdit:focus {{
                 border: 1px solid #5EA0FF;
                 background: #111B2B;
+            }}
+            QLineEdit:disabled {{
+                background: #0D1420;
+                border: 1px solid #26354D;
+                border-radius: 17px;
+                color: #7C8DA8;
             }}
         """)
 
