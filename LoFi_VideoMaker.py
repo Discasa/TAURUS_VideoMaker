@@ -2,7 +2,7 @@
 from __future__ import annotations
 """
 Criador de vídeo lo-fi com interface PySide6 moderna.
-Versão 8.0.8.
+Versão 8.0.9.
 
 Recursos principais:
 - Escolha de vídeo/GIF base por file chooser.
@@ -47,7 +47,7 @@ from pathlib import Path
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.8"
+APP_VERSION = "8.0.9"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -3698,6 +3698,8 @@ class MainWindow(QWidget):
         clear_bg = PillButton("Limpar", "normal")
         clear_bg.setFixedWidth(76)
         clear_bg.clicked.connect(lambda: self.bg_audio_picker.set_path(None))
+        self.btn_open = PillButton("Abrir pasta de saída", "normal")
+        self.btn_open.clicked.connect(self.abrir_pasta_saida)
 
         audio_title = QLabel("Som de fundo opcional")
         audio_title.setObjectName("SubCardTitle")
@@ -3745,6 +3747,7 @@ class MainWindow(QWidget):
         grid_files.addWidget(self.music_folder_picker, 1, 0, 1, 2)
         grid_files.addWidget(audio_subcard, 2, 0, 1, 2)
         grid_files.addWidget(self.output_picker, 3, 0, 1, 2)
+        grid_files.addWidget(self.btn_open, 4, 0, alignment=Qt.AlignLeft)
         grid_files.setColumnStretch(0, 1)
         card_arquivos.addLayout(grid_files)
         card_arquivos.setMinimumHeight(285)
@@ -3902,25 +3905,47 @@ class MainWindow(QWidget):
         self.btn_preview_intro.clicked.connect(self.preview_intro)
         self.btn_render_teste.clicked.connect(self.iniciar_teste_30s)
 
+        edit_subcard = QFrame()
+        edit_subcard.setObjectName("SubCard")
+        edit_layout = QGridLayout(edit_subcard)
+        edit_layout.setContentsMargins(10, 8, 10, 8)
+        edit_layout.setHorizontalSpacing(8)
+        edit_layout.setVerticalSpacing(6)
         label_editar = QLabel("Editar")
-        label_editar.setObjectName("FieldLabel")
-        label_testar = QLabel("Testar antes de renderizar")
-        label_testar.setObjectName("FieldLabel")
+        label_editar.setObjectName("SubCardTitle")
+        edit_layout.addWidget(label_editar, 0, 0, 1, 3)
+        edit_layout.addWidget(self.btn_fonte, 1, 0)
+        edit_layout.addWidget(self.btn_watermark, 1, 1)
+        edit_layout.addWidget(self.btn_intro, 1, 2)
 
-        visual_grid.addWidget(label_editar, 0, 0)
-        visual_grid.addWidget(self.btn_fonte, 0, 1)
-        visual_grid.addWidget(self.btn_watermark, 0, 2)
-        visual_grid.addWidget(self.btn_intro, 0, 3)
-        visual_grid.addWidget(label_testar, 1, 0)
-        visual_grid.addWidget(self.btn_preview, 1, 1)
-        visual_grid.addWidget(self.btn_preview_intro, 1, 2)
-        visual_grid.addWidget(self.btn_render_teste, 1, 3)
-        visual_grid.setColumnStretch(4, 1)
+        test_subcard = QFrame()
+        test_subcard.setObjectName("SubCard")
+        test_layout = QGridLayout(test_subcard)
+        test_layout.setContentsMargins(10, 8, 10, 8)
+        test_layout.setHorizontalSpacing(8)
+        test_layout.setVerticalSpacing(6)
+        label_testar = QLabel("Testar antes de renderizar")
+        label_testar.setObjectName("SubCardTitle")
+        test_layout.addWidget(label_testar, 0, 0, 1, 3)
+        test_layout.addWidget(self.btn_preview, 1, 0)
+        test_layout.addWidget(self.btn_preview_intro, 1, 1)
+        test_layout.addWidget(self.btn_render_teste, 1, 2)
+
+        visual_grid.addWidget(edit_subcard, 0, 0)
+        visual_grid.addWidget(test_subcard, 0, 1)
+        visual_grid.setColumnStretch(0, 1)
+        visual_grid.setColumnStretch(1, 1)
         card_visual.addLayout(visual_grid)
         content_layout.addWidget(card_visual)
 
+        # Log
+        self.log_texto = QTextEdit()
+        self.log_texto.setReadOnly(True)
+        self.log_texto.setMinimumHeight(110)
+        self.log_texto.setPlaceholderText("Logs do FFmpeg aparecerão aqui...")
+        content_layout.addWidget(self.log_texto)
+
         # Progresso
-        card_status = Card("4. Andamento")
         status_grid = QGridLayout()
         status_grid.setHorizontalSpacing(10)
         status_grid.setVerticalSpacing(4)
@@ -3938,46 +3963,31 @@ class MainWindow(QWidget):
         status_grid.addWidget(self.label_tempo, 0, 3)
         status_grid.addWidget(self.barra, 1, 0, 1, 4)
         status_grid.setColumnStretch(1, 1)
-        card_status.addLayout(status_grid)
-        content_layout.addWidget(card_status)
-
-        # Log
-        self.log_texto = QTextEdit()
-        self.log_texto.setReadOnly(True)
-        self.log_texto.setMinimumHeight(110)
-        self.log_texto.setPlaceholderText("Logs do FFmpeg aparecerão aqui...")
-        content_layout.addWidget(self.log_texto)
+        content_layout.addLayout(status_grid)
 
         # Botões principais
         row_buttons = QHBoxLayout()
         row_buttons.setSpacing(8)
         self.btn_start = PillButton("Iniciar renderização", "primary")
-        self.btn_pause = PillButton("Pausar", "normal")
         self.btn_cancel = PillButton("Cancelar", "danger")
         self.btn_clear = PillButton("Limpar log", "normal")
         self.btn_toggle_log = PillButton("Esconder log", "normal")
         self.btn_save_config = PillButton("Salvar configs JSON", "normal")
-        self.btn_open = PillButton("Abrir pasta de saída", "normal")
 
-        self.btn_pause.setEnabled(False)
         self.btn_cancel.setEnabled(False)
 
-        self.btn_start.clicked.connect(self.iniciar)
-        self.btn_pause.clicked.connect(self.alternar_pausa)
+        self.btn_start.clicked.connect(self.iniciar_ou_pausar)
         self.btn_cancel.clicked.connect(self.cancelar)
         self.btn_clear.clicked.connect(self.log_texto.clear)
         self.btn_toggle_log.clicked.connect(self.alternar_log)
         self.btn_save_config.clicked.connect(lambda: self.salvar_config(mostrar_alerta=True))
-        self.btn_open.clicked.connect(self.abrir_pasta_saida)
 
-        row_buttons.addWidget(self.btn_start)
-        row_buttons.addWidget(self.btn_pause)
-        row_buttons.addWidget(self.btn_cancel)
-        row_buttons.addStretch(1)
-        row_buttons.addWidget(self.btn_save_config)
         row_buttons.addWidget(self.btn_toggle_log)
         row_buttons.addWidget(self.btn_clear)
-        row_buttons.addWidget(self.btn_open)
+        row_buttons.addWidget(self.btn_save_config)
+        row_buttons.addStretch(1)
+        row_buttons.addWidget(self.btn_start)
+        row_buttons.addWidget(self.btn_cancel)
         content_layout.addLayout(row_buttons)
 
         scroll.setWidget(content)
@@ -4249,11 +4259,10 @@ class MainWindow(QWidget):
         self.timer.start(1000)
         self.ultimo_video = None
 
-        self.btn_start.setEnabled(False)
+        self.btn_start.setEnabled(True)
+        self.btn_start.setText("Pausar")
         self.btn_render_teste.setEnabled(False)
         self.btn_render_teste.setText("Renderizando teste...")
-        self.btn_pause.setEnabled(True)
-        self.btn_pause.setText("Pausar")
         self.btn_cancel.setEnabled(True)
 
         self.worker = WorkerRender(config, modo="teste_30s")
@@ -4262,6 +4271,12 @@ class MainWindow(QWidget):
         self.worker.etapa.connect(self.label_etapa.setText)
         self.worker.terminado.connect(self.finalizar)
         self.worker.start()
+
+    def iniciar_ou_pausar(self):
+        if self.worker and self.worker.isRunning():
+            self.alternar_pausa()
+        else:
+            self.iniciar()
 
     def iniciar(self):
         if self.worker and self.worker.isRunning():
@@ -4281,12 +4296,10 @@ class MainWindow(QWidget):
         self.timer.start(1000)
         self.ultimo_video = None
 
-        self.btn_start.setEnabled(False)
-        self.btn_start.setText("Renderizando...")
+        self.btn_start.setEnabled(True)
+        self.btn_start.setText("Pausar")
         if hasattr(self, "btn_render_teste"):
             self.btn_render_teste.setEnabled(False)
-        self.btn_pause.setEnabled(True)
-        self.btn_pause.setText("Pausar")
         self.btn_cancel.setEnabled(True)
 
         self.worker = WorkerRender(config)
@@ -4301,11 +4314,11 @@ class MainWindow(QWidget):
             return
         pausado = self.worker.alternar_pausa()
         if pausado:
-            self.btn_pause.setText("Resumir")
+            self.btn_start.setText("Retomar")
             self.label_etapa.setText("Pausado")
             self.adicionar_log("\nProcesso pausado.\n")
         else:
-            self.btn_pause.setText("Pausar")
+            self.btn_start.setText("Pausar")
             self.label_etapa.setText("Retomando")
             self.adicionar_log("\nProcesso retomado.\n")
 
@@ -4314,7 +4327,7 @@ class MainWindow(QWidget):
             return
         self.label_etapa.setText("Cancelando")
         self.btn_cancel.setEnabled(False)
-        self.btn_pause.setEnabled(False)
+        self.btn_start.setEnabled(False)
         self.adicionar_log("\nCancelamento solicitado. Encerrando FFmpeg e removendo arquivo incompleto...\n")
         self.worker.cancelar()
 
@@ -4342,8 +4355,6 @@ class MainWindow(QWidget):
         if hasattr(self, "btn_render_teste"):
             self.btn_render_teste.setEnabled(True)
             self.btn_render_teste.setText("Renderizar teste 30s")
-        self.btn_pause.setEnabled(False)
-        self.btn_pause.setText("Pausar")
         self.btn_cancel.setEnabled(False)
 
         if sucesso:

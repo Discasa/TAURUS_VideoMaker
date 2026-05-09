@@ -1,5 +1,14 @@
 # Histórico de Mudanças
 
+## 8.0.9 - 2026-05-09
+
+- Criados subcards no passo 3 para separar edição e testes antes de renderizar.
+- Removido o antigo card 4 de andamento.
+- Movida a barra de andamento para baixo do log.
+- Reorganizados os controles inferiores: opções de log/configuração à esquerda e ações de render à direita.
+- Transformado o botão principal em controle único de iniciar, pausar e retomar.
+- Movido o botão de abrir pasta de saída para o passo 1.
+
 ## 8.0.8 - 2026-05-09
 
 - Criados subcards no passo 2 para agrupar as opções de fade in e fade out.
