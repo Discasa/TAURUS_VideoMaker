@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.65 - 2026-05-10
+
+- Ajustados os sliders de tamanho da sombra para operar e indicar valores inteiros em pixels.
+
 ## 8.0.64 - 2026-05-10
 
 - Adicionado zoom da interface com faixa de 50% a 200%, salvo nas configurações.

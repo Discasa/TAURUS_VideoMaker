@@ -677,12 +677,13 @@ class ColorSwatch(QPushButton):
 
 
 class DecimalSlider(QWidget):
-    def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 2):
+    def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 2, suffix: str = ""):
         super().__init__()
         self.minimum = minimum
         self.maximum = maximum
         self.step = step
         self.decimals = decimals
+        self.suffix = suffix
         self.scale = int(round(1 / step))
 
         layout = QHBoxLayout(self)
@@ -714,7 +715,11 @@ class DecimalSlider(QWidget):
         return max(self.minimum, min(self.maximum, float(value) / self.scale))
 
     def _refresh_label(self):
-        self.label.setText(f"{self.value():.{self.decimals}f}")
+        if self.decimals == 0:
+            texto = str(int(round(self.value())))
+        else:
+            texto = f"{self.value():.{self.decimals}f}"
+        self.label.setText(f"{texto}{self.suffix}")
 
     def value(self) -> float:
         return self._from_slider(self.slider.value())
@@ -1304,7 +1309,7 @@ class MainUI(QWidget):
         self.font_titles_shadow_enabled.setChecked(True)
         self.font_titles_shadow_color = ColorSwatch("#000000")
         self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
-        self.font_titles_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0)
+        self.font_titles_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0, suffix=" px")
         self.font_titles_background_box = ToggleSwitch("Fundo do texto")
         self.font_titles_background_color = ColorSwatch("#000000")
         self.font_titles_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
@@ -1443,7 +1448,7 @@ class MainUI(QWidget):
         self.intro_shadow_color = ColorSwatch("#000000")
         self.intro_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.intro_shadow_enabled.setChecked(True)
-        self.intro_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0)
+        self.intro_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0, suffix=" px")
         self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.65)
         self.intro_background_box = ToggleSwitch("Fundo do texto")
         self.intro_background_color = ColorSwatch("#000000")
@@ -1517,7 +1522,7 @@ class MainUI(QWidget):
         self.wm_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.wm_shadow_enabled.setChecked(True)
         self.wm_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
-        self.wm_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0)
+        self.wm_shadow_size = DecimalSlider(0.0, 20.0, 1.0, 2.0, decimals=0, suffix=" px")
         self.wm_background_box = ToggleSwitch("Fundo do texto")
         self.wm_background_color = ColorSwatch("#000000")
         self.wm_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
