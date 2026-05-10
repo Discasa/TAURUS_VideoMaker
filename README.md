@@ -4,9 +4,9 @@ TAURUS Video Maker é um aplicativo de desktop para Windows que cria vídeos lo-
 
 ## Versão Atual
 
-O script está na versão `8.0.72`.
+O script está na versão `8.0.73`.
 
-A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.73`, `8.0.74` e assim por diante.
+A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.74`, `8.0.75` e assim por diante.
 
 ## Recursos
 
@@ -17,6 +17,11 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 - Normalização de loudness com `loudnorm`.
 - Fade in e fade out configuráveis.
 - Texto com nome das faixas, marca d'água e frases de introdução, com controles de fonte, cor, sombra e fundo.
+- Reordenação manual das músicas antes do render.
+- Preview estático com textos e marca d'água reposicionáveis por arraste.
+- Pre render em qualidade reduzida para revisar o vídeo dentro da interface.
+- Render final sempre exportado em 1920x1080.
+- Crossfade e silêncio configuráveis entre faixas.
 - Zoom da interface entre 50% e 200% para telas pequenas ou com escala alta do Windows.
 - Configurações salvas automaticamente em `%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini`.
 
@@ -53,8 +58,16 @@ Se a pasta de saída ficar vazia na interface, o vídeo será salvo automaticame
 
 ```text
 Pasta do projeto/
-  VideoMaker.py               Interface principal em PySide6
-  engine.py                   Backend de renderização, FFmpeg e worker
+  VideoMaker.py               Ponto de entrada do aplicativo
+  core/                       Backend de renderização
+    engine.py                 FFmpeg, configuração, pre render, render final e worker
+  ui/                         Interface PySide6 dividida em módulos
+    main_window.py            Janela principal, autosave e orquestração
+    left_panel.py             Entradas, saída e opções de render
+    center_panel.py           Preview, player, progresso e log
+    right_panel.py            Container das abas de ajustes
+    preview_canvas.py         Preview estático arrastável
+    common.py                 Widgets, helpers e constantes visuais
   requirements.txt            Dependências de execução
   ffmpeg/bin/                 FFmpeg local usado pelo aplicativo
   README.md                   Visão geral
@@ -66,4 +79,4 @@ Pasta do projeto/
 
 ## Distribuição Atual
 
-O fluxo mantido neste repositório é a execução pelo código-fonte com Python e FFmpeg local. Configurações, logs e cache ficam em `%LOCALAPPDATA%\TAURUS_VideoMaker`, enquanto os binários `ffmpeg.exe` e `ffprobe.exe` permanecem em `ffmpeg/bin/` dentro do projeto.
+O fluxo mantido neste repositório é a execução pelo código-fonte com Python e FFmpeg local. Configurações, logs, cache e pre renders ficam em `%LOCALAPPDATA%\TAURUS_VideoMaker`, enquanto os binários `ffmpeg.exe` e `ffprobe.exe` permanecem em `ffmpeg/bin/` dentro do projeto.

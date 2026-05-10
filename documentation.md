@@ -6,13 +6,13 @@ O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual bas
 
 ## Versão do Script
 
-A versão atual do script é `8.0.72`.
+A versão atual do script é `8.0.73`.
 
-O projeto segue versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar a partir da versão publicada atual, por exemplo `8.0.73`, `8.0.74` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
+O projeto segue versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar a partir da versão publicada atual, por exemplo `8.0.74`, `8.0.75` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
 Sempre que a versão do script mudar, atualize:
 
-- a constante `APP_VERSION` em [engine.py](engine.py);
+- a constante `APP_VERSION` em `core/engine.py`;
 - esta seção da documentação;
 - o [CHANGELOG.md](CHANGELOG.md).
 
@@ -33,10 +33,14 @@ Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [V
 
 ## Organização do Código
 
-O projeto agora separa interface e backend:
+O projeto separa o ponto de entrada, a interface e o backend:
 
-- [VideoMaker.py](VideoMaker.py) contém somente a interface PySide6, o mapeamento da UI para a configuração e os controles de tela.
-- [engine.py](engine.py) contém o backend: dataclasses de configuração, persistência em INI, controle de processo, chamadas de FFmpeg/FFprobe, `RenderEngine` e `WorkerRender`.
+- [VideoMaker.py](VideoMaker.py) contém somente o ponto de entrada que chama a interface.
+- `core/engine.py` contém o backend: dataclasses de configuração, persistência em INI, controle de processo, chamadas de FFmpeg/FFprobe, `RenderEngine` e `WorkerRender`.
+- `ui/main_window.py` contém a janela principal, autosave, configuração e orquestração de render.
+- `ui/left_panel.py`, `ui/center_panel.py` e `ui/right_panel.py` contêm os três painéis principais.
+- `ui/preview_canvas.py` contém o preview estático arrastável.
+- `ui/common.py` contém widgets reutilizáveis, helpers visuais, constantes de layout e stylesheet.
 
 ## FFmpeg Local
 
@@ -89,6 +93,22 @@ Os textos de títulos das músicas, frases de introdução e marca d'água em te
 - fundo ativável, cor do fundo, tamanho do fundo e opacidade do fundo.
 
 O tamanho padrão do fundo usa 6 px como base: 4 px acima do texto, 6 px abaixo e 6 px nas laterais. Esse valor pode ser ajustado pelo slider `Tam. fundo`.
+
+No preview estático, os textos e a marca d'água podem ser arrastados diretamente sobre a área do vídeo. O arraste atualiza a posição e as margens correspondentes nos controles da lateral.
+
+## Ordem e Transições das Músicas
+
+A subaba `Músicas > Nomes` lista as faixas detectadas na pasta escolhida. Os botões `Subir` e `Descer` alteram a ordem manual do render e essa ordem é salva junto com as configurações.
+
+Na aba `Áudio`, o campo `Crossfade` define a sobreposição entre faixas consecutivas. O campo `Silêncio` adiciona pausa entre faixas quando o crossfade está zerado. Se ambos forem definidos, o crossfade tem prioridade e o silêncio entre faixas é ignorado no render.
+
+## Pre Render e Render Final
+
+O botão `Pre render` da área central cria uma versão em cache do vídeo usando as mesmas entradas, ordem de músicas, textos, marca d'água e transições do vídeo final, mas em qualidade reduzida para revisão rápida. O pre render é gerado em 960x540 e com encode mais leve.
+
+Enquanto o arquivo fragmentado de pre render é gerado, o player tenta iniciar a reprodução assim que há dados suficientes. O botão muda para `Parar`; ao parar, o player volta ao preview estático e o cache desse pre render é descartado.
+
+O botão `Renderizar` cria o vídeo final. O render final sempre normaliza a saída visual para 1920x1080, independentemente da resolução da imagem ou vídeo base.
 
 ## Zoom da Interface
 
@@ -153,7 +173,9 @@ A partir da versão `8.0.1`, todas as chamadas internas de FFmpeg e FFprobe usam
 Depois de alterar o código:
 
 ```powershell
-.\.venv\Scripts\python.exe -m py_compile .\engine.py .\VideoMaker.py
+$uiFiles = Get-ChildItem .\ui -Filter *.py | ForEach-Object FullName
+$coreFiles = Get-ChildItem .\core -Filter *.py | ForEach-Object FullName
+.\.venv\Scripts\python.exe -m py_compile .\VideoMaker.py $uiFiles $coreFiles
 .\ffmpeg\bin\ffmpeg.exe -hide_banner -encoders
 ```
 

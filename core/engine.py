@@ -4,8 +4,8 @@ from __future__ import annotations
 Backend do TAURUS Video Maker.
 
 Este módulo concentra configurações, persistência, controle de processo,
-integração com FFmpeg, RenderEngine e WorkerRender. A interface gráfica fica em
-VideoMaker.py.
+integração com FFmpeg, RenderEngine e WorkerRender. A interface gráfica fica no
+pacote ui.
 """
 
 import ctypes
@@ -33,13 +33,13 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.72"
+APP_VERSION = "8.0.73"
 
 
 def obter_diretorio_aplicacao() -> Path:
     if getattr(sys, "frozen", False):
         return Path(sys.executable).resolve().parent
-    return Path(__file__).resolve().parent
+    return Path(__file__).resolve().parent.parent
 
 
 def obter_diretorio_recursos() -> Path:
@@ -77,6 +77,7 @@ TEMP_DIR = CACHE_DIR / "render"
 PREVIEW_CACHE_DIR = CACHE_DIR / "preview"
 LOG_DIR = APP_DATA_DIR / "logs"
 SETTINGS_INI_PATH = APP_DATA_DIR / "settings.ini"
+PRE_RENDER_DIR = CACHE_DIR / "pre_render"
 LEGACY_TEMP_DIR = SCRIPT_DIR / "_temp_audio_processado"
 LEGACY_CONFIG_JSON_PATH = SCRIPT_DIR / "video_creator_config.json"
 
@@ -106,6 +107,10 @@ NVENC_CQ = "18"
 NVENC_PRESET = "slow"
 NVENC_MAXRATE = "30M"
 NVENC_BUFSIZE = "60M"
+
+FINAL_RENDER_SIZE = (1920, 1080)
+PRE_RENDER_SIZE = (960, 540)
+PRE_RENDER_VISUAL_SCALE = PRE_RENDER_SIZE[1] / FINAL_RENDER_SIZE[1]
 
 
 # ==========================
@@ -221,15 +226,19 @@ class RenderConfig:
     music_folder: Path
     background_audio_path: Path | None
     output_folder: Path
+    output_path_override: Path | None = None
     use_gpu: bool = True
     use_fade_in: bool = True
     use_fade_out: bool = True
     fade_in_seconds: float = 3.0
     fade_out_seconds: float = 3.0
     background_volume: float = 0.30
+    crossfade_seconds: float = 0.0
+    silence_seconds: float = 0.0
     normalizacao: NormalizacaoConfig = field(default_factory=NormalizacaoConfig)
     fonte_texto: FonteTextoConfig = field(default_factory=FonteTextoConfig)
     track_titles: dict[str, str] = field(default_factory=dict)
+    track_order: list[str] = field(default_factory=list)
     watermark: WatermarkConfig = field(default_factory=WatermarkConfig)
     intro: IntroTextConfig = field(default_factory=IntroTextConfig)
 
@@ -316,6 +325,10 @@ def limpar_cache_antigo(dias: int = 7):
 
 def limpar_cache_render():
     remover_arquivo_ou_pasta(TEMP_DIR)
+
+
+def limpar_pre_render():
+    remover_arquivo_ou_pasta(PRE_RENDER_DIR)
 
 
 def _config_parser() -> configparser.ConfigParser:
@@ -423,6 +436,26 @@ def _carregar_titulos_musicas(parser: configparser.ConfigParser) -> dict[str, st
     return titulos
 
 
+def _salvar_ordem_musicas(parser: configparser.ConfigParser, ordem: list[str]):
+    secao = {"count": str(len(ordem))}
+    for indice, arquivo in enumerate(ordem):
+        secao[f"item_{indice:04d}"] = str(arquivo)
+    parser["ordem_musicas"] = secao
+
+
+def _carregar_ordem_musicas(parser: configparser.ConfigParser) -> list[str]:
+    if not parser.has_section("ordem_musicas"):
+        return []
+    secao = parser["ordem_musicas"]
+    total = _int_ini(secao.get("count"), 0)
+    ordem = []
+    for indice in range(total):
+        arquivo = str(secao.get(f"item_{indice:04d}", "")).strip()
+        if arquivo:
+            ordem.append(arquivo)
+    return ordem
+
+
 def _salvar_intro_phrases(parser: configparser.ConfigParser, frases: list[dict]):
     secao = {"count": str(len(frases))}
     for indice, frase in enumerate(frases):
@@ -476,12 +509,15 @@ def carregar_config() -> dict:
                 "fade_in_seconds": _float_ini(render.get("fade_in_seconds"), 3.0),
                 "fade_out_seconds": _float_ini(render.get("fade_out_seconds"), 3.0),
                 "background_volume": _float_ini(render.get("background_volume"), 0.3),
+                "crossfade_seconds": _float_ini(render.get("crossfade_seconds"), 0.0),
+                "silence_seconds": _float_ini(render.get("silence_seconds"), 0.0),
             },
             "normalizacao": normalizacao,
             "preview": {"volume": _float_ini(parser.get("preview", "volume", fallback="1.0"), 1.0)},
             "ui": {"zoom": _float_ini(parser.get("ui", "zoom", fallback="1.0"), 1.0)} if parser.has_section("ui") else {},
             "fonte_texto": fonte_texto,
             "titulos_musicas": _carregar_titulos_musicas(parser),
+            "ordem_musicas": _carregar_ordem_musicas(parser),
             "watermark": watermark,
             "intro": intro,
         }
@@ -505,6 +541,7 @@ def salvar_config(dados: dict):
     _salvar_secao(parser, "ui", dados.get("ui", {}))
     _salvar_secao(parser, "fonte_texto", dados.get("fonte_texto", {}))
     _salvar_titulos_musicas(parser, dados.get("titulos_musicas", {}))
+    _salvar_ordem_musicas(parser, dados.get("ordem_musicas", []))
     _salvar_secao(parser, "watermark", dados.get("watermark", {}))
 
     intro = dict(dados.get("intro", {}))
@@ -866,6 +903,10 @@ class RenderEngine:
         self.stage = stage_cb
         self.progresso_peso = 0.0
         self.peso_total = self._calcular_peso_total()
+        self._frases_intro_ativas: list[IntroFraseConfig] | None = None
+        self.render_scale = 1.0
+        self.output_size = FINAL_RENDER_SIZE
+        self.pre_render = False
 
     def _calcular_peso_total(self) -> float:
         return (
@@ -922,10 +963,34 @@ class RenderEngine:
         limpar_cache_render()
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
-    def run(self) -> Path:
+    def run_pre_render(self) -> Path:
+        return self._run_render(
+            prefixo_saida="pre_render",
+            streamable=True,
+            output_size=PRE_RENDER_SIZE,
+            render_scale=PRE_RENDER_VISUAL_SCALE,
+            pre_render=True,
+            nome_modo="Pre render 540p",
+        )
+
+    def run_final(self) -> Path:
+        return self._run_render(
+            prefixo_saida="video_final",
+            streamable=False,
+            output_size=FINAL_RENDER_SIZE,
+            render_scale=1.0,
+            pre_render=False,
+            nome_modo="Render final 1080p",
+        )
+
+    def _run_render(self, prefixo_saida: str, streamable: bool, output_size: tuple[int, int], render_scale: float, pre_render: bool, nome_modo: str) -> Path:
         CONTROLE_EXECUCAO.verificar_cancelamento()
+        self.render_scale = max(0.1, float(render_scale))
+        self.output_size = output_size
+        self.pre_render = pre_render
         self.validar()
         self.preparar_pastas()
+        self.preparar_frases_intro()
 
         self.progress(0)
         self.stage("Lendo arquivos")
@@ -934,6 +999,7 @@ class RenderEngine:
         self.log(f"Pasta das músicas: {self.config.music_folder}\n")
         self.log(f"Som de fundo: {self.config.background_audio_path or 'não usado'}\n")
         self.log(f"Pasta de saída: {self.config.output_folder}\n")
+        self.log(f"Modo: {nome_modo} ({output_size[0]}x{output_size[1]})\n")
         self.log(f"Renderização: {'GPU NVIDIA / NVENC' if self.config.use_gpu else 'CPU / libx264'}\n")
 
         usar_gpu = self.config.use_gpu and self.testar_nvenc()
@@ -951,9 +1017,9 @@ class RenderEngine:
             )
 
         arquivos_processados = self.processar_audios(tracks, duracao_total_musicas)
-        audio_final = self.concatenar_audios(arquivos_processados)
+        audio_final = self.combinar_audios(arquivos_processados, tracks)
         audio_final = self.normalizar_audio(audio_final, duracao_total_musicas)
-        saida_final = self.montar_video(audio_final, duracao_total, tracks, usar_gpu)
+        saida_final = self.montar_video(audio_final, duracao_total, tracks, usar_gpu, prefixo_saida=prefixo_saida, streamable=streamable, output_size=output_size, pre_render=pre_render)
 
         self.stage("Finalizado")
         self.progress(100)
@@ -981,27 +1047,50 @@ class RenderEngine:
         if not arquivos:
             raise ErroRender("Nenhum arquivo de música foi encontrado na pasta escolhida.")
 
-        tracks: list[TrackInfo] = []
-        cursor = 0.0
+        ordem = [str(nome) for nome in getattr(self.config, "track_order", []) if str(nome).strip()]
+        if ordem:
+            posicao = {nome: indice for indice, nome in enumerate(ordem)}
+            arquivos = sorted(arquivos, key=lambda p: (posicao.get(p.name, len(posicao)), natural_key(p)))
+
+        entradas: list[tuple[Path, str, float]] = []
         for arquivo in arquivos:
             CONTROLE_EXECUCAO.verificar_cancelamento()
             duracao = self.obter_duracao(arquivo)
             if duracao <= 0:
                 self.log(f"Aviso: ignorando arquivo sem duração válida: {arquivo.name}\n")
                 continue
+            titulo_manual = str(self.config.track_titles.get(arquivo.name, "")).strip()
+            entradas.append((arquivo, titulo_manual or limpar_titulo_musica(arquivo), duracao))
+
+        if not entradas:
+            raise ErroRender("Nenhuma música válida foi encontrada após leitura das durações.")
+
+        crossfade = max(0.0, float(getattr(self.config, "crossfade_seconds", 0.0)))
+        silencio = max(0.0, float(getattr(self.config, "silence_seconds", 0.0)))
+        if crossfade > 0 and silencio > 0:
+            self.log("\nAviso: crossfade e silêncio estão ativos. O silêncio entre faixas será ignorado durante o crossfade.\n")
+
+        tracks: list[TrackInfo] = []
+        cursor = 0.0
+        for indice, (arquivo, titulo, duracao) in enumerate(entradas):
             inicio = cursor
             fim = cursor + duracao
-            titulo_manual = str(self.config.track_titles.get(arquivo.name, "")).strip()
             tracks.append(
                 TrackInfo(
                     arquivo=arquivo,
-                    titulo=titulo_manual or limpar_titulo_musica(arquivo),
+                    titulo=titulo,
                     inicio=inicio,
                     fim=fim,
                     duracao=duracao,
                 )
             )
-            cursor = fim
+            if indice < len(entradas) - 1:
+                proxima_duracao = entradas[indice + 1][2]
+                if crossfade > 0:
+                    transicao = min(crossfade, duracao * 0.45, proxima_duracao * 0.45)
+                    cursor = fim - transicao
+                else:
+                    cursor = fim + silencio
 
         if not tracks:
             raise ErroRender("Nenhuma música válida foi encontrada após leitura das durações.")
@@ -1043,30 +1132,43 @@ class RenderEngine:
             filtros.append(f"afade=t=out:st={inicio}:d={duracao_fade}")
         return ",".join(filtros) if filtros else None
 
-    def processar_audios(self, tracks: list[TrackInfo], duracao_total: float) -> list[Path]:
-        self.stage("Processando músicas com fade")
+    def processar_audios_generico(
+        self,
+        tracks: list[TrackInfo],
+        duracao_total: float,
+        prefixo_saida: str,
+        etapa: str,
+        descricao_log: str,
+        filtro_fade_cb,
+        cortar_segmento: bool = False,
+    ) -> list[Path]:
+        self.stage(etapa)
         arquivos_processados: list[Path] = []
         duracao_processada = 0.0
         inicio_bloco = self.progresso_peso
 
         for i, track in enumerate(tracks, start=1):
             CONTROLE_EXECUCAO.verificar_cancelamento()
-            self.stage(f"Processando música {i}/{len(tracks)}: {track.titulo}")
-            self.log(f"\nProcessando música {i}/{len(tracks)}: {track.arquivo.name}\n")
+            self.stage(f"{etapa} {i}/{len(tracks)}: {track.titulo}")
+            self.log(f"\n{descricao_log} {i}/{len(tracks)}: {track.arquivo.name}\n")
 
-            saida = TEMP_DIR / f"audio_{i:03d}.wav"
+            saida = TEMP_DIR / f"{prefixo_saida}_{i:03d}.wav"
             CONTROLE_EXECUCAO.registrar_arquivo_temporario(saida)
 
             comando = [
                 str(FFMPEG),
                 "-y",
                 "-i", str(track.arquivo),
+            ]
+            if cortar_segmento:
+                comando += ["-t", segundos_para_ffmpeg(track.duracao)]
+            comando += [
                 "-vn",
                 "-ar", "48000",
                 "-ac", "2",
             ]
 
-            filtro = self.criar_filtro_fade(track.duracao)
+            filtro = filtro_fade_cb(track)
             if filtro:
                 comando += ["-af", filtro]
 
@@ -1077,8 +1179,8 @@ class RenderEngine:
                 str(saida),
             ]
 
-            progresso_inicio_audio = inicio_bloco + ((duracao_processada / duracao_total) * PESO_PROCESSAR_AUDIOS)
-            peso_audio_atual = (track.duracao / duracao_total) * PESO_PROCESSAR_AUDIOS
+            progresso_inicio_audio = inicio_bloco + ((duracao_processada / max(duracao_total, 0.1)) * PESO_PROCESSAR_AUDIOS)
+            peso_audio_atual = (track.duracao / max(duracao_total, 0.1)) * PESO_PROCESSAR_AUDIOS
 
             self.rodar_ffmpeg_com_progresso(
                 comando=comando,
@@ -1093,6 +1195,83 @@ class RenderEngine:
         self.progresso_peso = inicio_bloco + PESO_PROCESSAR_AUDIOS
         self.emitir_progresso_por_peso(self.progresso_peso)
         return arquivos_processados
+
+    def processar_audios(self, tracks: list[TrackInfo], duracao_total: float) -> list[Path]:
+        return self.processar_audios_generico(
+            tracks=tracks,
+            duracao_total=duracao_total,
+            prefixo_saida="audio",
+            etapa="Processando músicas com fade",
+            descricao_log="Processando música",
+            filtro_fade_cb=lambda track: self.criar_filtro_fade(track.duracao),
+        )
+
+    def crossfades_entre_tracks(self, tracks: list[TrackInfo]) -> list[float]:
+        valores = []
+        for atual, proxima in zip(tracks, tracks[1:]):
+            valores.append(max(0.0, atual.fim - proxima.inicio))
+        return valores
+
+    def criar_silencio(self, indice: int, duracao: float) -> Path:
+        saida = TEMP_DIR / f"silencio_{indice:03d}.wav"
+        CONTROLE_EXECUCAO.registrar_arquivo_temporario(saida)
+        comando = [
+            str(FFMPEG),
+            "-y",
+            "-f", "lavfi",
+            "-i", "anullsrc=r=48000:cl=stereo",
+            "-t", segundos_para_ffmpeg(duracao),
+            "-c:a", "pcm_s16le",
+            str(saida),
+        ]
+        self.rodar_comando(comando)
+        return saida
+
+    def combinar_audios(self, arquivos_processados: list[Path], tracks: list[TrackInfo]) -> Path:
+        crossfades = self.crossfades_entre_tracks(tracks)
+        if any(valor > 0 for valor in crossfades):
+            return self.crossfade_audios(arquivos_processados, crossfades)
+
+        silencio = max(0.0, float(getattr(self.config, "silence_seconds", 0.0)))
+        if silencio > 0 and len(arquivos_processados) > 1:
+            lista_com_silencio: list[Path] = []
+            for indice, arquivo in enumerate(arquivos_processados):
+                lista_com_silencio.append(arquivo)
+                if indice < len(arquivos_processados) - 1:
+                    lista_com_silencio.append(self.criar_silencio(indice + 1, silencio))
+            return self.concatenar_audios(lista_com_silencio)
+
+        return self.concatenar_audios(arquivos_processados)
+
+    def crossfade_audios(self, arquivos_processados: list[Path], crossfades: list[float]) -> Path:
+        self.stage("Aplicando crossfade entre músicas")
+        self.log("\nAplicando crossfade entre músicas...\n")
+
+        audio_final = TEMP_DIR / "audio_final.wav"
+        CONTROLE_EXECUCAO.registrar_arquivo_temporario(audio_final)
+        comando = [str(FFMPEG), "-y"]
+        for arquivo in arquivos_processados:
+            comando += ["-i", str(arquivo)]
+
+        filtros = []
+        entrada_atual = "0:a"
+        for indice, duracao in enumerate(crossfades, start=1):
+            saida = "aout" if indice == len(arquivos_processados) - 1 else f"xf{indice}"
+            duracao = max(0.01, float(duracao))
+            filtros.append(f"[{entrada_atual}][{indice}:a]acrossfade=d={segundos_para_ffmpeg(duracao)}:c1=tri:c2=tri[{saida}]")
+            entrada_atual = saida
+
+        comando += [
+            "-filter_complex", ";".join(filtros),
+            "-map", "[aout]",
+            "-ar", "48000",
+            "-ac", "2",
+            "-c:a", "pcm_s16le",
+            str(audio_final),
+        ]
+        self.rodar_comando(comando)
+        self.adicionar_peso(PESO_CONCATENAR)
+        return audio_final
 
     def concatenar_audios(self, arquivos_processados: list[Path]) -> Path:
         self.stage("Concatenando músicas")
@@ -1202,7 +1381,7 @@ class RenderEngine:
         self.emitir_progresso_por_peso(self.progresso_peso)
         return audio_normalizado
 
-    def frases_intro_ativas(self) -> list[IntroFraseConfig]:
+    def preparar_frases_intro(self) -> list[IntroFraseConfig]:
         cfg = self.config.intro
         frases = [frase for frase in cfg.phrases if str(frase.texto).strip() and frase.duracao > 0]
         if cfg.randomize_phrases and frases:
@@ -1214,7 +1393,13 @@ class RenderEngine:
                 reorganizadas.append(IntroFraseConfig(cursor, frase.duracao, frase.texto))
                 cursor += frase.duracao + 1.0
             frases = reorganizadas
+        self._frases_intro_ativas = frases
         return frases
+
+    def frases_intro_ativas(self) -> list[IntroFraseConfig]:
+        if self._frases_intro_ativas is None:
+            return self.preparar_frases_intro()
+        return list(self._frases_intro_ativas)
 
     def tempos_intro_frase(self, frase: IntroFraseConfig) -> dict:
         cfg = self.config.intro
@@ -1245,27 +1430,30 @@ class RenderEngine:
         cfg = self.config.watermark
         if not cfg.enabled or cfg.mode != "texto" or not cfg.text.strip():
             return None
+        escala_render = self.render_scale
+        margin_x = int(round(cfg.margin_x * escala_render))
+        margin_y = int(round(cfg.margin_y * escala_render))
 
         opcoes = []
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(cfg.font_family, False))
         opcoes.append(f"fontfile='{fontfile}'")
 
         posicoes = {
-            "inferior_direita": (f"w-tw-{cfg.margin_x}", f"h-th-{cfg.margin_y}"),
-            "inferior_esquerda": (f"{cfg.margin_x}", f"h-th-{cfg.margin_y}"),
-            "inferior_centro": ("(w-tw)/2", f"h-th-{cfg.margin_y}"),
-            "superior_direita": (f"w-tw-{cfg.margin_x}", f"{cfg.margin_y}"),
-            "superior_esquerda": (f"{cfg.margin_x}", f"{cfg.margin_y}"),
-            "superior_centro": ("(w-tw)/2", f"{cfg.margin_y}"),
+            "inferior_direita": (f"w-tw-{margin_x}", f"h-th-{margin_y}"),
+            "inferior_esquerda": (f"{margin_x}", f"h-th-{margin_y}"),
+            "inferior_centro": ("(w-tw)/2", f"h-th-{margin_y}"),
+            "superior_direita": (f"w-tw-{margin_x}", f"{margin_y}"),
+            "superior_esquerda": (f"{margin_x}", f"{margin_y}"),
+            "superior_centro": ("(w-tw)/2", f"{margin_y}"),
             "centro": ("(w-tw)/2", "(h-th)/2"),
         }
         x, y = posicoes.get(cfg.position, posicoes["inferior_direita"])
-        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0))
+        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0) * escala_render)
 
         opcoes += [
             f"text='{escape_drawtext(cfg.text)}'",
             f"fontcolor={cor_drawtext(cfg.color, cfg.opacity)}",
-            f"fontsize={cfg.font_size}",
+            f"fontsize={max(1, int(round(cfg.font_size * escala_render)))}",
             f"x={x}",
             f"y={y}",
             f"shadowcolor={cor_drawtext(cfg.shadow_color, cfg.shadow_opacity if cfg.shadow_enabled else 0.0)}",
@@ -1276,19 +1464,24 @@ class RenderEngine:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(cfg.background_color, cfg.background_opacity)}",
-                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0))}",
+                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0) * escala_render)}",
             ]
         return "drawtext=" + ":".join(opcoes)
 
     def criar_overlay_watermark_imagem(self, entrada_video: str, indice_imagem: int) -> list[str]:
         cfg = self.config.watermark
-        x, y = overlay_position_expr(cfg.position, cfg.margin_x, cfg.margin_y)
+        escala_render = self.render_scale
+        x, y = overlay_position_expr(
+            cfg.position,
+            int(round(cfg.margin_x * escala_render)),
+            int(round(cfg.margin_y * escala_render)),
+        )
         filtros: list[str] = []
 
         # Corrige a marca d'água por imagem: normaliza a imagem para RGBA,
         # preserva transparência de PNG/WebP e aplica a opacidade escolhida.
         # setsar=1 evita distorção em imagens/vídeos com sample aspect ratio estranho.
-        largura = int(getattr(cfg, "image_width", 0) or 0)
+        largura = int(round((getattr(cfg, "image_width", 0) or 0) * escala_render))
         opacity = max(0.0, min(1.0, float(getattr(cfg, "opacity", 1.0))))
         if largura > 0:
             filtros.append(
@@ -1353,13 +1546,14 @@ class RenderEngine:
         inicio = max(0.0, float(inicio))
         fim = max(inicio + 0.01, float(fim))
         texto = escape_drawtext(texto)
+        escala_render = self.render_scale
 
-        font_size = int(getattr(cfg, "font_size", 34))
+        font_size = max(1, int(round(int(getattr(cfg, "font_size", 34)) * escala_render)))
         color = getattr(cfg, "color", "#FFFFFF")
         opacity = float(getattr(cfg, "opacity", 0.93))
         shadow_opacity = float(getattr(cfg, "shadow_opacity", 0.60)) if getattr(cfg, "shadow_enabled", True) else 0.0
         shadow_color = getattr(cfg, "shadow_color", "#000000")
-        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0))
+        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0) * escala_render)
         font_family = getattr(cfg, "font_family", "Georgia")
         bold = int(getattr(cfg, "font_weight", 400)) >= 600 if intro else False
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(font_family, bold))
@@ -1367,14 +1561,14 @@ class RenderEngine:
         if intro:
             x, y = self.posicao_drawtext_expr(
                 getattr(cfg, "position", "inferior_esquerda"),
-                int(getattr(cfg, "margin_x", 90)),
-                int(getattr(cfg, "margin_y", 120)),
+                int(round(int(getattr(cfg, "margin_x", 90)) * escala_render)),
+                int(round(int(getattr(cfg, "margin_y", 120)) * escala_render)),
             )
         else:
             x, y = self.posicao_drawtext_expr(
                 getattr(cfg, "position", "inferior_esquerda"),
-                int(getattr(cfg, "margin_left", 45)),
-                int(getattr(cfg, "margin_bottom", 42)),
+                int(round(int(getattr(cfg, "margin_left", 45)) * escala_render)),
+                int(round(int(getattr(cfg, "margin_bottom", 42)) * escala_render)),
             )
 
         opcoes = [
@@ -1394,7 +1588,7 @@ class RenderEngine:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(getattr(cfg, 'background_color', '#000000'), float(getattr(cfg, 'box_opacity', getattr(cfg, 'background_opacity', 0.35))))}",
-                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0))}",
+                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0) * escala_render)}",
             ]
 
         return f"[{entrada}]drawtext=" + ":".join(opcoes) + f"[{saida}]"
@@ -1494,9 +1688,14 @@ class RenderEngine:
                     eventos.append((t1, t2, texto[:i], False))
         return eventos
 
-    def criar_filtro_video(self, tracks: list[TrackInfo], watermark_image_index: int | None = None) -> str:
+    def criar_filtro_video(self, tracks: list[TrackInfo], watermark_image_index: int | None = None, output_size: tuple[int, int] = FINAL_RENDER_SIZE) -> str:
         filtros: list[str] = []
-        entrada_atual = "0:v"
+        largura, altura = output_size
+        filtros.append(
+            f"[0:v]scale={largura}:{altura}:force_original_aspect_ratio=increase,"
+            f"crop={largura}:{altura},setsar=1[vbase]"
+        )
+        entrada_atual = "vbase"
         contador = 0
 
         eventos = self.criar_eventos_drawtext_intro() + self.criar_eventos_drawtext_musicas(tracks)
@@ -1523,8 +1722,8 @@ class RenderEngine:
 
         return ";\n".join(filtros)
 
-    def criar_filter_complex(self, tracks: list[TrackInfo], usar_fundo: bool, watermark_image_index: int | None = None, typing_audio_index: int | None = None, duracao_total: float | None = None) -> Path:
-        filtros = [self.criar_filtro_video(tracks, watermark_image_index)]
+    def criar_filter_complex(self, tracks: list[TrackInfo], usar_fundo: bool, watermark_image_index: int | None = None, typing_audio_index: int | None = None, duracao_total: float | None = None, output_size: tuple[int, int] = FINAL_RENDER_SIZE) -> Path:
+        filtros = [self.criar_filtro_video(tracks, watermark_image_index, output_size)]
         audio_labels: list[str] = []
         intro = self.config.intro
         delay = max(0.0, intro.delay_music_seconds if intro.enabled else 0.0)
@@ -1597,11 +1796,11 @@ class RenderEngine:
             return ["-loop", "1", "-framerate", "30", "-i", str(caminho)]
         return ["-stream_loop", "-1", "-i", str(caminho)]
 
-    def montar_video(self, audio_final: Path, duracao_total: float, tracks: list[TrackInfo], usar_gpu: bool, prefixo_saida: str = "video_final") -> Path:
-        self.stage("Montando vídeo final")
-        self.log("\nMontando vídeo final...\n")
+    def montar_video(self, audio_final: Path, duracao_total: float, tracks: list[TrackInfo], usar_gpu: bool, prefixo_saida: str = "video_final", streamable: bool = False, output_size: tuple[int, int] = FINAL_RENDER_SIZE, pre_render: bool = False) -> Path:
+        self.stage("Montando pre render" if pre_render else "Montando vídeo final")
+        self.log("\nMontando pre render...\n" if pre_render else "\nMontando vídeo final...\n")
 
-        saida_final = self.config.output_folder / gerar_nome_video(prefixo_saida)
+        saida_final = self.config.output_path_override or (self.config.output_folder / gerar_nome_video(prefixo_saida))
         CONTROLE_EXECUCAO.registrar_arquivo_temporario(saida_final)
 
         usar_fundo = self.config.background_audio_path is not None
@@ -1653,6 +1852,7 @@ class RenderEngine:
             indice_watermark_imagem if usar_watermark_imagem else None,
             indice_typing,
             duracao_total,
+            output_size,
         )
 
         comando += [
@@ -1664,26 +1864,48 @@ class RenderEngine:
         comando += ["-map", "[aout]"]
 
         if usar_gpu:
-            comando += [
-                "-c:v", "h264_nvenc",
-                "-preset", NVENC_PRESET,
-                "-rc", "vbr",
-                "-cq", NVENC_CQ,
-                "-b:v", "0",
-                "-maxrate", NVENC_MAXRATE,
-                "-bufsize", NVENC_BUFSIZE,
-            ]
+            if pre_render:
+                comando += [
+                    "-c:v", "h264_nvenc",
+                    "-preset", "p1",
+                    "-rc", "vbr",
+                    "-cq", "28",
+                    "-b:v", "0",
+                    "-maxrate", "6M",
+                    "-bufsize", "12M",
+                ]
+            else:
+                comando += [
+                    "-c:v", "h264_nvenc",
+                    "-preset", NVENC_PRESET,
+                    "-rc", "vbr",
+                    "-cq", NVENC_CQ,
+                    "-b:v", "0",
+                    "-maxrate", NVENC_MAXRATE,
+                    "-bufsize", NVENC_BUFSIZE,
+                ]
         else:
-            comando += [
-                "-c:v", "libx264",
-                "-preset", "medium",
-                "-crf", "20",
-            ]
+            if pre_render:
+                comando += [
+                    "-c:v", "libx264",
+                    "-preset", "veryfast",
+                    "-crf", "30",
+                ]
+            else:
+                comando += [
+                    "-c:v", "libx264",
+                    "-preset", "medium",
+                    "-crf", "20",
+                ]
 
         comando += [
             "-pix_fmt", "yuv420p",
             "-c:a", "aac",
-            "-b:a", "192k",
+            "-b:a", "128k" if pre_render else "192k",
+        ]
+        if streamable:
+            comando += ["-movflags", "+frag_keyframe+empty_moov+default_base_moof"]
+        comando += [
             "-progress", "pipe:1",
             "-nostats",
             str(saida_final),
@@ -1819,141 +2041,6 @@ class RenderEngine:
                 + "\n".join(linhas_erro[-80:])
             )
 
-    def selecionar_tracks_teste(self, tracks: list[TrackInfo], duracao_musica: float) -> list[TrackInfo]:
-        """Seleciona apenas o começo da playlist para gerar teste curto.
-
-        Se uma música passar do limite, ela é cortada só para o teste.
-        Assim o botão de teste não precisa processar a playlist inteira.
-        """
-        limite = max(0.1, float(duracao_musica))
-        selecionados: list[TrackInfo] = []
-        cursor = 0.0
-
-        for track in tracks:
-            if cursor >= limite:
-                break
-            duracao_segmento = min(float(track.duracao), limite - cursor)
-            if duracao_segmento <= 0:
-                continue
-            selecionados.append(
-                TrackInfo(
-                    arquivo=track.arquivo,
-                    titulo=track.titulo,
-                    inicio=cursor,
-                    fim=cursor + duracao_segmento,
-                    duracao=duracao_segmento,
-                )
-            )
-            cursor += duracao_segmento
-
-        return selecionados
-
-    def criar_filtro_fade_teste(self, duracao_segmento: float, duracao_original: float) -> str | None:
-        filtros = []
-        if self.config.use_fade_in and self.config.fade_in_seconds > 0:
-            duracao_fade = min(self.config.fade_in_seconds, duracao_segmento)
-            filtros.append(f"afade=t=in:st=0:d={duracao_fade}")
-
-        # Só aplica fade-out se o segmento de teste contém o final real da música.
-        # Se a música continua depois dos 30s, o teste não inventa um fade que não existirá no render final.
-        segmento_chega_no_fim = duracao_segmento >= (duracao_original - 0.05)
-        if segmento_chega_no_fim and self.config.use_fade_out and self.config.fade_out_seconds > 0:
-            duracao_fade = min(self.config.fade_out_seconds, duracao_segmento)
-            inicio = max(0, duracao_segmento - duracao_fade)
-            filtros.append(f"afade=t=out:st={inicio}:d={duracao_fade}")
-
-        return ",".join(filtros) if filtros else None
-
-    def processar_audios_teste(self, tracks_teste: list[TrackInfo], tracks_originais: list[TrackInfo], duracao_total: float) -> list[Path]:
-        self.stage("Processando músicas do teste de 30s")
-        arquivos_processados: list[Path] = []
-        duracao_processada = 0.0
-        inicio_bloco = self.progresso_peso
-        mapa_duracoes_originais = {track.arquivo.resolve(): track.duracao for track in tracks_originais}
-
-        for i, track in enumerate(tracks_teste, start=1):
-            CONTROLE_EXECUCAO.verificar_cancelamento()
-            self.stage(f"Processando trecho {i}/{len(tracks_teste)}: {track.titulo}")
-            self.log(f"\nProcessando trecho de teste {i}/{len(tracks_teste)}: {track.arquivo.name} ({segundos_para_legivel(track.duracao)})\n")
-
-            saida = TEMP_DIR / f"audio_teste_{i:03d}.wav"
-            CONTROLE_EXECUCAO.registrar_arquivo_temporario(saida)
-
-            comando = [
-                str(FFMPEG),
-                "-y",
-                "-i", str(track.arquivo),
-                "-t", segundos_para_ffmpeg(track.duracao),
-                "-vn",
-                "-ar", "48000",
-                "-ac", "2",
-            ]
-
-            duracao_original = mapa_duracoes_originais.get(track.arquivo.resolve(), track.duracao)
-            filtro = self.criar_filtro_fade_teste(track.duracao, duracao_original)
-            if filtro:
-                comando += ["-af", filtro]
-
-            comando += [
-                "-c:a", "pcm_s16le",
-                "-progress", "pipe:1",
-                "-nostats",
-                str(saida),
-            ]
-
-            progresso_inicio_audio = inicio_bloco + ((duracao_processada / max(duracao_total, 0.1)) * PESO_PROCESSAR_AUDIOS)
-            peso_audio_atual = (track.duracao / max(duracao_total, 0.1)) * PESO_PROCESSAR_AUDIOS
-
-            self.rodar_ffmpeg_com_progresso(
-                comando=comando,
-                duracao_etapa=track.duracao,
-                progresso_inicio_peso=progresso_inicio_audio,
-                peso_etapa=peso_audio_atual,
-            )
-
-            duracao_processada += track.duracao
-            arquivos_processados.append(saida)
-
-        self.progresso_peso = inicio_bloco + PESO_PROCESSAR_AUDIOS
-        self.emitir_progresso_por_peso(self.progresso_peso)
-        return arquivos_processados
-
-    def gerar_teste_30s(self) -> Path:
-        self.validar()
-        self.preparar_pastas()
-        self.progress(0)
-        self.stage("Preparando render de teste de 30s")
-        self.log("\n=== Render de teste de 30 segundos ===\n")
-        self.log("O teste renderiza somente o começo da playlist, com textos, intro, áudio de fundo e marca d'água.\n")
-
-        usar_gpu = self.config.use_gpu and self.testar_nvenc()
-
-        tracks_originais = self.detectar_tracks()
-        duracao_teste = 30.0
-        tracks_teste = self.selecionar_tracks_teste(tracks_originais, duracao_teste)
-        if not tracks_teste:
-            raise ErroRender("Não foi possível preparar músicas para o teste de 30s.")
-
-        duracao_total_musica = sum(track.duracao for track in tracks_teste)
-        self.log("\n=== Trechos usados no teste ===\n")
-        for i, track in enumerate(tracks_teste, start=1):
-            self.log(
-                f"{i:02d}. {track.titulo} | "
-                f"{segundos_para_legivel(track.inicio)} - {segundos_para_legivel(track.fim)} "
-                f"({segundos_para_legivel(track.duracao)})\n"
-            )
-
-        arquivos_processados = self.processar_audios_teste(tracks_teste, tracks_originais, duracao_total_musica)
-        audio_final = self.concatenar_audios(arquivos_processados)
-        audio_final = self.normalizar_audio(audio_final, duracao_total_musica)
-        saida_final = self.montar_video(audio_final, duracao_teste, tracks_teste, usar_gpu, prefixo_saida="teste_30s")
-
-        self.stage("Teste finalizado")
-        self.progress(100)
-        self.log("\nTeste de 30 segundos finalizado com sucesso!\n")
-        self.log(f"Vídeo de teste criado em: {saida_final}\n")
-        return saida_final
-
     def testar_nvenc(self) -> bool:
         if not self.config.use_gpu:
             return False
@@ -1998,11 +2085,11 @@ class WorkerRender(QThread):
                 progress_cb=self.progresso.emit,
                 stage_cb=self.etapa.emit,
             )
-            if self.modo == "teste_30s":
-                saida = engine.gerar_teste_30s()
-                self.terminado.emit(True, "Teste de 30 segundos criado com sucesso.", str(saida))
+            if self.modo == "pre_render":
+                saida = engine.run_pre_render()
+                self.terminado.emit(True, "Pre render criado com sucesso.", str(saida))
             else:
-                saida = engine.run()
+                saida = engine.run_final()
                 self.terminado.emit(True, "Vídeo criado com sucesso.", str(saida))
         except RenderCancelado:
             CONTROLE_EXECUCAO.excluir_arquivos_cancelados()

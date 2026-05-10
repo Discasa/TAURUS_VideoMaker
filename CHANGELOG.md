@@ -1,5 +1,23 @@
 # Histórico de Mudanças
 
+## 8.0.73 - 2026-05-10
+
+- Corrigida a intro aleatória para manter texto e som de digitação sincronizados durante o mesmo render.
+- Removido código morto do seletor antigo de cores.
+- Corrigido o botão `Limpar` da tabela de frases para acionar o autosave.
+- Alterado o antigo botão `Render` do preview para `Pre render`, gerando uma versão em cache e iniciando a reprodução assim que o arquivo estiver disponível.
+- Unificado o processamento de áudio em um fluxo compartilhado.
+- Separados os painéis principais da interface em `LeftPanel`, `CenterPanel` e `RightPanel`.
+- Movida a interface para o pacote `ui`, mantendo `VideoMaker.py` apenas como ponto de entrada.
+- Movido o backend para `core/engine.py`.
+- Separados os fluxos de `pre render` e render final no backend.
+- Renomeado o botão `Render` para `Pre render` e o botão `Iniciar` para `Renderizar`.
+- O pre render agora usa 960x540 e encode mais leve para revisão dentro da interface.
+- O render final agora sempre exporta em 1920x1080.
+- Adicionada reordenação manual das músicas.
+- Adicionado reposicionamento por arraste de textos e marca d'água no preview estático.
+- Adicionados controles de crossfade e silêncio entre faixas na aba `Áudio`.
+
 ## 8.0.72 - 2026-05-10
 
 - Substituída a persistência `video_creator_config.json` por `%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini`.
