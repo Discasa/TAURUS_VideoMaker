@@ -25,11 +25,13 @@ from engine import (
     IntroFraseConfig,
     IntroTextConfig,
     NormalizacaoConfig,
+    LOG_DIR,
     RenderConfig,
     WatermarkConfig,
     WorkerRender,
+    PREVIEW_CACHE_DIR,
     caminho_ou_vazio,
-    carregar_json_config,
+    carregar_config,
     criar_kwargs_subprocess_controlado,
     gerar_pasta_saida_padrao,
     intro_config_from_dict,
@@ -38,7 +40,7 @@ from engine import (
     limpar_titulo_musica,
     natural_key,
     popular_combo_posicoes,
-    salvar_json_config,
+    salvar_config,
 )
 
 CONTROL_HEIGHT = 34
@@ -838,12 +840,14 @@ class PreviewCanvas(QWidget):
         super().__init__()
         self.base_pixmap: QPixmap | None = None
         self.config: RenderConfig | None = None
+        self.selected_track_title = ""
         self.setMinimumSize(520, 300)
         self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
 
-    def set_preview(self, pixmap: QPixmap | None, config: RenderConfig | None):
+    def set_preview(self, pixmap: QPixmap | None, config: RenderConfig | None, selected_track_title: str = ""):
         self.base_pixmap = pixmap
         self.config = config
+        self.selected_track_title = selected_track_title.strip()
         self.update()
 
     def paintEvent(self, event):
@@ -949,7 +953,7 @@ class PreviewCanvas(QWidget):
 
     def _draw_title(self, painter: QPainter, frame: QRectF):
         cfg = self.config.fonte_texto
-        sample_title = next((title for title in self.config.track_titles.values() if str(title).strip()), "Nome da faixa")
+        sample_title = self.selected_track_title or next((title for title in self.config.track_titles.values() if str(title).strip()), "Nome da faixa")
         self._draw_text(
             painter,
             frame,
@@ -1113,7 +1117,7 @@ class MainUI(QWidget):
         layout.addWidget(media)
 
         output, output_layout = section("Saída")
-        self.out_picker = PathPicker("folder", placeholder="Automática: render_DATA_HORA")
+        self.out_picker = PathPicker("folder", placeholder="Automática: Área de Trabalho")
         self.btn_open_output = ActionButton("Abrir pasta", "ghost")
         self.btn_open_output.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.btn_open_output.clicked.connect(self.abrir_pasta_saida)
@@ -1263,13 +1267,13 @@ class MainUI(QWidget):
         layout = QVBoxLayout(panel)
         layout.setContentsMargins(12, 14, 12, 12)
         layout.setSpacing(10)
-        title = QLabel("Ajustes")
+        title = QLabel("Ajustes de legenda")
         title.setObjectName("ColumnTitle")
         layout.addWidget(title)
 
         self.tabs = QTabWidget()
         self.tabs.addTab(self.build_music_tab(), "Músicas")
-        self.tabs.addTab(self.build_intro_tab(), "Intro")
+        self.tabs.addTab(self.build_intro_tab(), "Frases")
         self.tabs.addTab(self.build_watermark_tab(), "Marca")
         self.tabs.addTab(self.build_audio_tab(), "Áudio")
         self.tabs.tabBar().setUsesScrollButtons(False)
@@ -1282,7 +1286,7 @@ class MainUI(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
         self.music_tabs = QTabWidget()
-        self.music_tabs.addTab(self.build_title_tracks_tab(), "Faixas")
+        self.music_tabs.addTab(self.build_title_tracks_tab(), "Nomes")
         self.music_tabs.addTab(self.build_title_font_tab(), "Fonte")
         self.music_tabs.tabBar().setUsesScrollButtons(False)
         layout.addWidget(self.music_tabs)
@@ -1337,29 +1341,18 @@ class MainUI(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        self.track_titles_table = QTableWidget(0, 2)
-        self.track_titles_table.setHorizontalHeaderLabels(["Arquivo", "Título no vídeo"])
+        self.track_titles_table = QTableWidget(0, 1)
+        self.track_titles_table.setHorizontalHeaderLabels(["Nome"])
         self.track_titles_table.setShowGrid(True)
         self.track_titles_table.setCornerButtonEnabled(False)
         self.track_titles_table.setFrameShape(QFrame.NoFrame)
         self.track_titles_table.verticalHeader().setVisible(False)
-        self.track_titles_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
-        self.track_titles_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
+        self.track_titles_table.horizontalHeader().setVisible(False)
+        self.track_titles_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.Stretch)
         self.track_titles_table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.track_titles_table.setSizeAdjustPolicy(QAbstractScrollArea.AdjustIgnored)
         self.track_titles_table.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         layout.addWidget(self.track_titles_table, 1)
-
-        row = QHBoxLayout()
-        row.addStretch(1)
-        self.btn_auto_titles = ActionButton("Gerar títulos", "normal", 130)
-        self.btn_clear_titles = ActionButton("Limpar títulos", "ghost", 130)
-        self.btn_auto_titles.clicked.connect(self.auto_fill_track_titles)
-        self.btn_clear_titles.clicked.connect(self.clear_track_titles)
-        row.addWidget(self.btn_auto_titles)
-        row.addWidget(self.btn_clear_titles)
-        row.addStretch(1)
-        layout.addLayout(row)
         return tab
 
     def build_intro_tab(self) -> QWidget:
@@ -1368,14 +1361,14 @@ class MainUI(QWidget):
         layout.setContentsMargins(8, 8, 8, 8)
         layout.setSpacing(8)
         self.intro_tabs = QTabWidget()
-        self.intro_tabs.addTab(self.build_intro_phrases_tab(), "Frases")
         self.intro_tabs.addTab(self.build_intro_text_tab(), "Texto")
-        self.intro_tabs.addTab(self.build_intro_sound_tab(), "Som")
+        self.intro_tabs.addTab(self.build_intro_font_tab(), "Fonte")
+        self.intro_tabs.addTab(self.build_intro_effect_tab(), "Efeito")
         self.intro_tabs.tabBar().setUsesScrollButtons(False)
         layout.addWidget(self.intro_tabs)
         return tab
 
-    def build_intro_phrases_tab(self) -> QWidget:
+    def build_intro_text_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -1403,35 +1396,10 @@ class MainUI(QWidget):
         row.addStretch(1)
         layout.addLayout(row)
 
-        form = QGridLayout()
-        setup_form(form)
-        self.intro_eff = QComboBox()
-        self.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
-        set_input_width(self.intro_eff)
-        self.intro_delay = QDoubleSpinBox(); self.intro_delay.setRange(0, 120); self.intro_delay.setSuffix(" s")
-        self.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar.")
-        self.intro_randomize = ToggleSwitch("Escolher frases aleatórias")
-        self.intro_random_count = QSpinBox(); self.intro_random_count.setRange(1, 99); self.intro_random_count.setValue(3)
-        add_row(form, 0, "Efeito", self.intro_eff)
-        add_row(form, 1, "Música após", self.intro_delay)
-        add_wide(form, 2, self.intro_randomize)
-        add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
-        layout.addWidget(centered_layout(form))
-
-        preset_row = QHBoxLayout()
-        preset_row.addStretch(1)
-        btn_save = ActionButton("Salvar preset", "ghost")
-        btn_load = ActionButton("Carregar preset", "ghost")
-        btn_save.clicked.connect(self.save_intro_preset)
-        btn_load.clicked.connect(self.load_intro_preset)
-        preset_row.addWidget(btn_save)
-        preset_row.addWidget(btn_load)
-        preset_row.addStretch(1)
-        layout.addLayout(preset_row)
         layout.addStretch(1)
         return tab
 
-    def build_intro_text_tab(self) -> QWidget:
+    def build_intro_font_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -1470,12 +1438,20 @@ class MainUI(QWidget):
         layout.addStretch(1)
         return tab
 
-    def build_intro_sound_tab(self) -> QWidget:
+    def build_intro_effect_tab(self) -> QWidget:
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
         form = QGridLayout()
         setup_form(form)
+        self.intro_eff = QComboBox()
+        self.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
+        set_input_width(self.intro_eff)
+        self.intro_delay = QDoubleSpinBox(); self.intro_delay.setRange(0, 120); self.intro_delay.setSuffix(" s")
+        self.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar.")
+        self.intro_randomize = ToggleSwitch("Escolher frases aleatórias")
+        self.intro_random_count = QSpinBox(); self.intro_random_count.setRange(1, 99); self.intro_random_count.setValue(3)
         self.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação opcional")
         self.intro_typing_volume = QDoubleSpinBox(); self.intro_typing_volume.setRange(0, 1); self.intro_typing_volume.setSingleStep(0.05); self.intro_typing_volume.setValue(0.30)
         self.intro_typing_cps = QDoubleSpinBox(); self.intro_typing_cps.setRange(1, 120); self.intro_typing_cps.setValue(18.0); self.intro_typing_cps.setSuffix(" car/s")
@@ -1484,13 +1460,28 @@ class MainUI(QWidget):
         self.intro_show_cursor.setChecked(True)
         self.intro_backspace_audio = ToggleSwitch("Som no backspace")
         self.intro_backspace_audio.setChecked(True)
-        add_row(form, 0, "Som teclado", self.intro_audio)
-        add_row(form, 1, "Volume", self.intro_typing_volume)
-        add_row(form, 2, "Digitação", self.intro_typing_cps)
-        add_row(form, 3, "Backspace", self.intro_backspace_cps)
-        add_wide(form, 4, self.intro_show_cursor)
-        add_wide(form, 5, self.intro_backspace_audio)
+        add_row(form, 0, "Efeito", self.intro_eff)
+        add_row(form, 1, "Música após", self.intro_delay)
+        add_wide(form, 2, self.intro_randomize)
+        add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
+        add_row(form, 4, "Som teclado", self.intro_audio)
+        add_row(form, 5, "Volume", self.intro_typing_volume)
+        add_row(form, 6, "Digitação", self.intro_typing_cps)
+        add_row(form, 7, "Backspace", self.intro_backspace_cps)
+        add_wide(form, 8, self.intro_show_cursor)
+        add_wide(form, 9, self.intro_backspace_audio)
         layout.addWidget(centered_layout(form))
+
+        preset_row = QHBoxLayout()
+        preset_row.addStretch(1)
+        btn_save = ActionButton("Salvar preset", "ghost")
+        btn_load = ActionButton("Carregar preset", "ghost")
+        btn_save.clicked.connect(self.save_intro_preset)
+        btn_load.clicked.connect(self.load_intro_preset)
+        preset_row.addWidget(btn_save)
+        preset_row.addWidget(btn_load)
+        preset_row.addStretch(1)
+        layout.addLayout(preset_row)
         layout.addStretch(1)
         return tab
 
@@ -1762,7 +1753,7 @@ class MainUI(QWidget):
             self.preview_status.setText("Preview indisponível")
             return
         try:
-            preview_dir = SCRIPT_DIR / "_temp_audio_processado"
+            preview_dir = PREVIEW_CACHE_DIR
             preview_dir.mkdir(parents=True, exist_ok=True)
             target = preview_dir / "preview_primeiro_frame.jpg"
             command = [str(FFMPEG), "-y", "-hide_banner", "-loglevel", "error", "-i", str(source), "-frames:v", "1", "-q:v", "2", str(target)]
@@ -1782,7 +1773,7 @@ class MainUI(QWidget):
         self.extract_preview_frame(self.video_picker.path())
         if hasattr(self, "video_widget") and self.video_widget.isVisible():
             return
-        self.preview.set_preview(self.preview_pixmap, config)
+        self.preview.set_preview(self.preview_pixmap, config, self.selected_track_title())
 
     def set_preview_volume(self, value: int):
         volume = max(0.0, min(1.0, value / 20.0))
@@ -1854,13 +1845,18 @@ class MainUI(QWidget):
         if not hasattr(self, "track_titles_table"):
             return titles
         for row in range(self.track_titles_table.rowCount()):
-            file_item = self.track_titles_table.item(row, 0)
-            title_item = self.track_titles_table.item(row, 1)
-            file_name = (file_item.text() if file_item else "").strip()
+            title_item = self.track_titles_table.item(row, 0)
+            file_name = str(title_item.data(Qt.UserRole) if title_item else "").strip()
             title = (title_item.text() if title_item else "").strip()
             if file_name and title:
                 titles[file_name] = title
         return titles
+
+    def selected_track_title(self) -> str:
+        if not hasattr(self, "track_titles_table"):
+            return ""
+        item = self.track_titles_table.currentItem()
+        return (item.text() if item else "").strip()
 
     def get_config_obj(self, validar: bool = True) -> RenderConfig:
         video = self.video_picker.path()
@@ -1967,7 +1963,7 @@ class MainUI(QWidget):
     def save_config(self):
         try:
             cfg = self.get_config_obj(validar=False)
-            salvar_json_config({
+            salvar_config({
                 "app_version": APP_VERSION,
                 "paths": {
                     "video_path": caminho_ou_vazio(self.video_picker.path()),
@@ -2000,7 +1996,7 @@ class MainUI(QWidget):
 
     def load_config(self):
         self._config_loading = True
-        data = carregar_json_config()
+        data = carregar_config()
         if data:
             paths = data.get("paths", {})
             self.video_picker.set_path(paths.get("video_path"))
@@ -2064,38 +2060,24 @@ class MainUI(QWidget):
         if isinstance(existing_titles, dict):
             current_titles.update({str(k): str(v) for k, v in existing_titles.items()})
         files = self.music_files_from_folder()
+        selected_file = ""
+        selected_item = self.track_titles_table.currentItem()
+        if selected_item:
+            selected_file = str(selected_item.data(Qt.UserRole) or "")
         self.track_titles_table.blockSignals(True)
         self.track_titles_table.setRowCount(0)
+        selected_row = 0
         for file in files:
             row = self.track_titles_table.rowCount()
             self.track_titles_table.insertRow(row)
-            file_item = QTableWidgetItem(file.name)
-            file_item.setFlags(file_item.flags() & ~Qt.ItemIsEditable)
             title_item = QTableWidgetItem(current_titles.get(file.name, limpar_titulo_musica(file)))
-            self.track_titles_table.setItem(row, 0, file_item)
-            self.track_titles_table.setItem(row, 1, title_item)
+            title_item.setData(Qt.UserRole, file.name)
+            self.track_titles_table.setItem(row, 0, title_item)
+            if file.name == selected_file:
+                selected_row = row
         self.track_titles_table.blockSignals(False)
-        self.trigger_autosave()
-
-    def auto_fill_track_titles(self):
-        files = self.music_files_from_folder()
-        file_map = {file.name: limpar_titulo_musica(file) for file in files}
-        self.track_titles_table.blockSignals(True)
-        for row in range(self.track_titles_table.rowCount()):
-            file_item = self.track_titles_table.item(row, 0)
-            title_item = self.track_titles_table.item(row, 1)
-            if file_item and title_item:
-                title_item.setText(file_map.get(file_item.text(), title_item.text()))
-        self.track_titles_table.blockSignals(False)
-        self.trigger_autosave()
-
-    def clear_track_titles(self):
-        self.track_titles_table.blockSignals(True)
-        for row in range(self.track_titles_table.rowCount()):
-            item = self.track_titles_table.item(row, 1)
-            if item:
-                item.setText("")
-        self.track_titles_table.blockSignals(False)
+        if files:
+            self.track_titles_table.selectRow(selected_row)
         self.trigger_autosave()
 
     def apply_watermark_config(self, cfg: WatermarkConfig):
@@ -2228,6 +2210,7 @@ class MainUI(QWidget):
                 child.colorChanged.connect(self.trigger_autosave)
         self.intro_table.itemChanged.connect(self.trigger_autosave)
         self.track_titles_table.itemChanged.connect(self.trigger_autosave)
+        self.track_titles_table.itemSelectionChanged.connect(self.update_preview)
 
     def trigger_autosave(self, *args):
         if self._config_loading:
@@ -2379,7 +2362,8 @@ class MainUI(QWidget):
                 if self.render_mode != "preview":
                     QMessageBox.information(self, "Cancelado", mensagem)
             else:
-                log_path = SCRIPT_DIR / "erro_ffmpeg_log.txt"
+                LOG_DIR.mkdir(parents=True, exist_ok=True)
+                log_path = LOG_DIR / "erro_ffmpeg_log.txt"
                 try:
                     log_path.write_text(mensagem, encoding="utf-8", errors="ignore")
                 except Exception:
@@ -2399,7 +2383,7 @@ class MainUI(QWidget):
         if folder is None and self.ultimo_video and self.ultimo_video.exists():
             folder = self.ultimo_video.parent
         if folder is None:
-            folder = SCRIPT_DIR
+            folder = gerar_pasta_saida_padrao()
         try:
             folder.mkdir(parents=True, exist_ok=True)
             if os.name == "nt":

@@ -1,5 +1,39 @@
 # Histórico de Mudanças
 
+## 8.0.72 - 2026-05-10
+
+- Substituída a persistência `video_creator_config.json` por `%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini`.
+- Alterada a pasta de saída padrão para a Área de Trabalho do usuário atual.
+- Movidos arquivos temporários de render e preview para `%LOCALAPPDATA%\TAURUS_VideoMaker\cache`.
+- Adicionada limpeza automática do cache de renderização para evitar acúmulo indefinido em disco.
+- Atualizada a documentação para refletir o layout fonte atual, sem arquivos de empacotamento.
+
+## 8.0.71 - 2026-05-10
+
+- O preview agora exibe o nome da música selecionada na lista `Nomes`.
+- Ao carregar a pasta de músicas, a primeira faixa é selecionada para mostrar uma amostra imediata no preview.
+
+## 8.0.70 - 2026-05-10
+
+- Removido o botão `Gerar` da subaba `Nomes`.
+- A lista de nomes das músicas agora é preenchida automaticamente ao selecionar a pasta de músicas.
+- Simplificada a lista para uma única coluna editável com os nomes que aparecem no vídeo.
+
+## 8.0.69 - 2026-05-10
+
+- Simplificada a subaba `Nomes` para manter apenas o botão `Gerar`.
+- Removido o botão `Limpar títulos` e a rotina de limpeza manual redundante.
+
+## 8.0.68 - 2026-05-10
+
+- Renomeada a subaba `Faixas` para `Nomes` dentro da aba `Músicas`.
+
+## 8.0.67 - 2026-05-10
+
+- Renomeada a coluna lateral para `Ajustes de legenda`.
+- Renomeada a aba `Intro` para `Frases`.
+- Reorganizadas as subabas de frases em `Texto`, `Fonte` e `Efeito`.
+
 ## 8.0.66 - 2026-05-10
 
 - Renomeada a subaba de configuração dos títulos das músicas para `Fonte`.

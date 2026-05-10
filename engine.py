@@ -9,6 +9,7 @@ VideoMaker.py.
 """
 
 import ctypes
+import configparser
 import json
 import os
 import random
@@ -18,6 +19,7 @@ import signal
 import subprocess
 import sys
 import threading
+import time
 from dataclasses import asdict, dataclass, field, fields
 from datetime import datetime
 from pathlib import Path
@@ -31,7 +33,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.66"
+APP_VERSION = "8.0.72"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -47,11 +49,36 @@ def obter_diretorio_recursos() -> Path:
     return obter_diretorio_aplicacao()
 
 
+def obter_appdata_local() -> Path:
+    base = os.environ.get("LOCALAPPDATA")
+    if base:
+        return Path(base)
+    if os.name == "nt":
+        return Path.home() / "AppData" / "Local"
+    return Path.home() / ".local" / "share"
+
+
+def obter_desktop_usuario() -> Path:
+    desktop = Path(os.environ.get("USERPROFILE", str(Path.home()))) / "Desktop"
+    if desktop.exists():
+        return desktop
+    desktop = Path.home() / "Desktop"
+    if desktop.exists():
+        return desktop
+    return Path.home()
+
+
 SCRIPT_DIR = obter_diretorio_aplicacao()
 RESOURCE_DIR = obter_diretorio_recursos()
+APP_DATA_DIR = obter_appdata_local() / "TAURUS_VideoMaker"
+CACHE_DIR = APP_DATA_DIR / "cache"
 FFMPEG_BIN = RESOURCE_DIR / "ffmpeg" / "bin"
-TEMP_DIR = SCRIPT_DIR / "_temp_audio_processado"
-CONFIG_JSON_PATH = SCRIPT_DIR / "video_creator_config.json"  # JSON salvo ao lado deste script
+TEMP_DIR = CACHE_DIR / "render"
+PREVIEW_CACHE_DIR = CACHE_DIR / "preview"
+LOG_DIR = APP_DATA_DIR / "logs"
+SETTINGS_INI_PATH = APP_DATA_DIR / "settings.ini"
+LEGACY_TEMP_DIR = SCRIPT_DIR / "_temp_audio_processado"
+LEGACY_CONFIG_JSON_PATH = SCRIPT_DIR / "video_creator_config.json"
 
 FFMPEG = FFMPEG_BIN / "ffmpeg.exe"
 FFPROBE = FFMPEG_BIN / "ffprobe.exe"
@@ -217,7 +244,7 @@ class TrackInfo:
 
 
 # ==========================
-# JSON DE CONFIGURAÇÕES
+# INI DE CONFIGURAÇÕES
 # ==========================
 
 def dataclass_from_dict(cls, dados: dict | None):
@@ -264,23 +291,231 @@ def caminho_ou_vazio(caminho: Path | None) -> str:
     return str(caminho) if caminho else ""
 
 
-def carregar_json_config() -> dict:
-    if not CONFIG_JSON_PATH.exists():
+def remover_arquivo_ou_pasta(caminho: Path):
+    try:
+        if caminho.is_dir():
+            shutil.rmtree(caminho)
+        elif caminho.exists():
+            caminho.unlink()
+    except Exception:
+        pass
+
+
+def limpar_cache_antigo(dias: int = 7):
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    limite = time.time() - (max(1, int(dias)) * 24 * 60 * 60)
+    for item in CACHE_DIR.iterdir():
+        try:
+            if item.stat().st_mtime < limite:
+                remover_arquivo_ou_pasta(item)
+        except Exception:
+            pass
+    if LEGACY_TEMP_DIR.exists():
+        remover_arquivo_ou_pasta(LEGACY_TEMP_DIR)
+
+
+def limpar_cache_render():
+    remover_arquivo_ou_pasta(TEMP_DIR)
+
+
+def _config_parser() -> configparser.ConfigParser:
+    parser = configparser.ConfigParser(interpolation=None)
+    parser.optionxform = str
+    return parser
+
+
+def _valor_para_ini(valor) -> str:
+    if isinstance(valor, bool):
+        return "true" if valor else "false"
+    if valor is None:
+        return ""
+    return str(valor)
+
+
+def _bool_ini(valor, padrao=False) -> bool:
+    if isinstance(valor, bool):
+        return valor
+    if valor is None:
+        return bool(padrao)
+    texto = str(valor).strip().lower()
+    if texto in {"1", "true", "yes", "sim", "on"}:
+        return True
+    if texto in {"0", "false", "no", "nao", "não", "off"}:
+        return False
+    return bool(padrao)
+
+
+def _int_ini(valor, padrao=0) -> int:
+    try:
+        return int(float(str(valor).strip()))
+    except Exception:
+        return int(padrao)
+
+
+def _float_ini(valor, padrao=0.0) -> float:
+    try:
+        return float(str(valor).strip())
+    except Exception:
+        return float(padrao)
+
+
+def _converter_ini(valor, padrao):
+    if isinstance(padrao, bool):
+        return _bool_ini(valor, padrao)
+    if isinstance(padrao, int) and not isinstance(padrao, bool):
+        return _int_ini(valor, padrao)
+    if isinstance(padrao, float):
+        return _float_ini(valor, padrao)
+    return "" if valor is None else str(valor)
+
+
+def _salvar_secao(parser: configparser.ConfigParser, nome: str, dados: dict):
+    parser[nome] = {
+        str(chave): _valor_para_ini(valor)
+        for chave, valor in dados.items()
+        if not isinstance(valor, (dict, list, tuple))
+    }
+
+
+def _carregar_secao(parser: configparser.ConfigParser, nome: str) -> dict:
+    if not parser.has_section(nome):
+        return {}
+    return {chave: valor for chave, valor in parser.items(nome)}
+
+
+def _carregar_dataclass(parser: configparser.ConfigParser, nome: str, cls) -> dict:
+    if not parser.has_section(nome):
+        return {}
+    padrao = cls()
+    dados = {}
+    secao = parser[nome]
+    for campo in fields(cls):
+        if campo.name not in secao:
+            continue
+        valor_padrao = getattr(padrao, campo.name)
+        if isinstance(valor_padrao, list):
+            continue
+        dados[campo.name] = _converter_ini(secao.get(campo.name), valor_padrao)
+    return dados
+
+
+def _salvar_titulos_musicas(parser: configparser.ConfigParser, titulos: dict):
+    secao = {"count": str(len(titulos))}
+    for indice, (arquivo, titulo) in enumerate(titulos.items()):
+        prefixo = f"item_{indice:04d}"
+        secao[f"{prefixo}_file"] = str(arquivo)
+        secao[f"{prefixo}_title"] = str(titulo)
+    parser["titulos_musicas"] = secao
+
+
+def _carregar_titulos_musicas(parser: configparser.ConfigParser) -> dict[str, str]:
+    if not parser.has_section("titulos_musicas"):
+        return {}
+    secao = parser["titulos_musicas"]
+    titulos = {}
+    total = _int_ini(secao.get("count"), 0)
+    for indice in range(total):
+        prefixo = f"item_{indice:04d}"
+        arquivo = str(secao.get(f"{prefixo}_file", "")).strip()
+        titulo = str(secao.get(f"{prefixo}_title", "")).strip()
+        if arquivo and titulo:
+            titulos[arquivo] = titulo
+    return titulos
+
+
+def _salvar_intro_phrases(parser: configparser.ConfigParser, frases: list[dict]):
+    secao = {"count": str(len(frases))}
+    for indice, frase in enumerate(frases):
+        prefixo = f"item_{indice:04d}"
+        secao[f"{prefixo}_inicio"] = _valor_para_ini(frase.get("inicio", 0.0))
+        secao[f"{prefixo}_duracao"] = _valor_para_ini(frase.get("duracao", 4.0))
+        secao[f"{prefixo}_texto"] = _valor_para_ini(frase.get("texto", ""))
+    parser["intro_phrases"] = secao
+
+
+def _carregar_intro_phrases(parser: configparser.ConfigParser) -> list[dict]:
+    if not parser.has_section("intro_phrases"):
+        return []
+    secao = parser["intro_phrases"]
+    frases = []
+    total = _int_ini(secao.get("count"), 0)
+    for indice in range(total):
+        prefixo = f"item_{indice:04d}"
+        texto = str(secao.get(f"{prefixo}_texto", "")).strip()
+        if texto:
+            frases.append({
+                "inicio": _float_ini(secao.get(f"{prefixo}_inicio"), 0.0),
+                "duracao": _float_ini(secao.get(f"{prefixo}_duracao"), 4.0),
+                "texto": texto,
+            })
+    return frases
+
+
+def carregar_config() -> dict:
+    if SETTINGS_INI_PATH.exists():
+        parser = _config_parser()
+        try:
+            parser.read(SETTINGS_INI_PATH, encoding="utf-8")
+        except Exception:
+            return {}
+
+        render = _carregar_secao(parser, "render")
+        normalizacao = _carregar_dataclass(parser, "normalizacao", NormalizacaoConfig)
+        fonte_texto = _carregar_dataclass(parser, "fonte_texto", FonteTextoConfig)
+        watermark = _carregar_dataclass(parser, "watermark", WatermarkConfig)
+        intro = _carregar_dataclass(parser, "intro", IntroTextConfig)
+        intro["phrases"] = _carregar_intro_phrases(parser)
+
+        return {
+            "app_version": parser.get("app", "app_version", fallback=""),
+            "paths": _carregar_secao(parser, "paths"),
+            "render": {
+                "use_gpu": _bool_ini(render.get("use_gpu"), True),
+                "use_fade_in": _bool_ini(render.get("use_fade_in"), True),
+                "use_fade_out": _bool_ini(render.get("use_fade_out"), True),
+                "fade_in_seconds": _float_ini(render.get("fade_in_seconds"), 3.0),
+                "fade_out_seconds": _float_ini(render.get("fade_out_seconds"), 3.0),
+                "background_volume": _float_ini(render.get("background_volume"), 0.3),
+            },
+            "normalizacao": normalizacao,
+            "preview": {"volume": _float_ini(parser.get("preview", "volume", fallback="1.0"), 1.0)},
+            "ui": {"zoom": _float_ini(parser.get("ui", "zoom", fallback="1.0"), 1.0)} if parser.has_section("ui") else {},
+            "fonte_texto": fonte_texto,
+            "titulos_musicas": _carregar_titulos_musicas(parser),
+            "watermark": watermark,
+            "intro": intro,
+        }
+
+    if not LEGACY_CONFIG_JSON_PATH.exists():
         return {}
     try:
-        return json.loads(CONFIG_JSON_PATH.read_text(encoding="utf-8"))
+        return json.loads(LEGACY_CONFIG_JSON_PATH.read_text(encoding="utf-8"))
     except Exception:
         return {}
 
 
-def salvar_json_config(dados: dict):
-    CONFIG_JSON_PATH.parent.mkdir(parents=True, exist_ok=True)
-    temporario = CONFIG_JSON_PATH.with_name(CONFIG_JSON_PATH.name + ".tmp")
-    temporario.write_text(
-        json.dumps(dados, ensure_ascii=False, indent=2),
-        encoding="utf-8",
-    )
-    temporario.replace(CONFIG_JSON_PATH)
+def salvar_config(dados: dict):
+    APP_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    parser = _config_parser()
+    parser["app"] = {"app_version": str(dados.get("app_version", APP_VERSION))}
+    _salvar_secao(parser, "paths", dados.get("paths", {}))
+    _salvar_secao(parser, "render", dados.get("render", {}))
+    _salvar_secao(parser, "normalizacao", dados.get("normalizacao", {}))
+    _salvar_secao(parser, "preview", dados.get("preview", {}))
+    _salvar_secao(parser, "ui", dados.get("ui", {}))
+    _salvar_secao(parser, "fonte_texto", dados.get("fonte_texto", {}))
+    _salvar_titulos_musicas(parser, dados.get("titulos_musicas", {}))
+    _salvar_secao(parser, "watermark", dados.get("watermark", {}))
+
+    intro = dict(dados.get("intro", {}))
+    frases = intro.pop("phrases", [])
+    _salvar_secao(parser, "intro", intro)
+    _salvar_intro_phrases(parser, frases)
+
+    temporario = SETTINGS_INI_PATH.with_name(SETTINGS_INI_PATH.name + ".tmp")
+    with temporario.open("w", encoding="utf-8") as arquivo:
+        parser.write(arquivo)
+    temporario.replace(SETTINGS_INI_PATH)
 
 
 # ==========================
@@ -616,8 +851,7 @@ def gerar_nome_video(prefixo: str = "video_final") -> str:
 
 
 def gerar_pasta_saida_padrao() -> Path:
-    data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    return SCRIPT_DIR / f"render_{data_hora}"
+    return obter_desktop_usuario()
 
 
 # ==========================
@@ -684,8 +918,8 @@ class RenderEngine:
         self.config.output_folder.mkdir(parents=True, exist_ok=True)
 
     def preparar_pastas(self):
-        if TEMP_DIR.exists():
-            shutil.rmtree(TEMP_DIR)
+        limpar_cache_antigo()
+        limpar_cache_render()
         TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
     def run(self) -> Path:
@@ -1495,7 +1729,8 @@ class RenderEngine:
             raise RenderCancelado("Renderização cancelada pelo usuário.")
 
         if processo.returncode != 0:
-            log_path = SCRIPT_DIR / "erro_ffmpeg_log.txt"
+            LOG_DIR.mkdir(parents=True, exist_ok=True)
+            log_path = LOG_DIR / "erro_ffmpeg_log.txt"
             log_completo = (
                 "COMANDO EXECUTADO:\n" + " ".join(str(c) for c in comando) + "\n\n"
                 f"RETURNCODE: {processo.returncode}\n\n"
@@ -1566,7 +1801,8 @@ class RenderEngine:
             raise RenderCancelado("Renderização cancelada pelo usuário.")
 
         if processo.returncode != 0:
-            log_path = SCRIPT_DIR / "erro_ffmpeg_log.txt"
+            LOG_DIR.mkdir(parents=True, exist_ok=True)
+            log_path = LOG_DIR / "erro_ffmpeg_log.txt"
             log_completo = (
                 "COMANDO EXECUTADO:\n" + " ".join(str(c) for c in comando) + "\n\n"
                 f"RETURNCODE: {processo.returncode}\n\n"
@@ -1778,6 +2014,9 @@ class WorkerRender(QThread):
             self.etapa.emit("Erro")
             self.log.emit(f"\nERRO:\n{erro}\n")
             self.terminado.emit(False, str(erro), "")
+        finally:
+            limpar_cache_render()
+            limpar_cache_antigo()
 
     def cancelar(self):
         CONTROLE_EXECUCAO.solicitar_cancelamento()

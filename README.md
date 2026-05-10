@@ -4,9 +4,9 @@ TAURUS Video Maker é um aplicativo de desktop para Windows que cria vídeos lo-
 
 ## Versão Atual
 
-O script está na versão `8.0.66`.
+O script está na versão `8.0.72`.
 
-A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
+A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.73`, `8.0.74` e assim por diante.
 
 ## Recursos
 
@@ -18,13 +18,13 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 - Fade in e fade out configuráveis.
 - Texto com nome das faixas, marca d'água e frases de introdução, com controles de fonte, cor, sombra e fundo.
 - Zoom da interface entre 50% e 200% para telas pequenas ou com escala alta do Windows.
-- Configurações salvas automaticamente em JSON ao lado do aplicativo.
+- Configurações salvas automaticamente em `%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini`.
 
 ## Requisitos
 
 - Windows 10 ou mais recente.
 - Python 3.10 ou mais recente.
-- Dependências Python em [requirements.txt](requirements.txt).
+- Dependências Python de execução em [requirements.txt](requirements.txt).
 - Git LFS para clonar os binários do FFmpeg quando o repositório vier de um remoto.
 
 ## Como Rodar Pelo Código-Fonte
@@ -47,7 +47,7 @@ ffmpeg/bin/ffprobe.exe
 
 Esses arquivos são rastreados com Git LFS porque são grandes. Depois de clonar o repositório, execute `git lfs pull` se os executáveis não estiverem presentes.
 
-Se a pasta de saída ficar vazia na interface, o vídeo será salvo automaticamente ao lado do script em uma subpasta `render_AAAA-MM-DD_HH-MM-SS`.
+Se a pasta de saída ficar vazia na interface, o vídeo será salvo automaticamente na Área de Trabalho do usuário atual.
 
 ## Estrutura
 
@@ -56,9 +56,6 @@ Pasta do projeto/
   VideoMaker.py               Interface principal em PySide6
   engine.py                   Backend de renderização, FFmpeg e worker
   requirements.txt            Dependências de execução
-  requirements-dev.txt        Dependências de empacotamento
-  build_executable.ps1        Preparação futura do executável
-  packaging/                  Arquivos do PyInstaller
   ffmpeg/bin/                 FFmpeg local usado pelo aplicativo
   README.md                   Visão geral
   documentation.md            Documentação detalhada
@@ -67,8 +64,6 @@ Pasta do projeto/
   THIRD_PARTY_NOTICES.md      Avisos sobre dependências de terceiros
 ```
 
-## Futuro Executável
+## Distribuição Atual
 
-O código já separa a pasta do aplicativo da pasta de recursos empacotados. Isso permite que um executável futuro salve configurações e logs ao lado do `.exe`, enquanto `ffmpeg.exe` e `ffprobe.exe` ficam embutidos como recursos do pacote.
-
-O arquivo [packaging/TAURUS_Video_Maker.spec](packaging/TAURUS_Video_Maker.spec) já inclui os binários do FFmpeg no caminho interno `ffmpeg/bin/`.
+O fluxo mantido neste repositório é a execução pelo código-fonte com Python e FFmpeg local. Configurações, logs e cache ficam em `%LOCALAPPDATA%\TAURUS_VideoMaker`, enquanto os binários `ffmpeg.exe` e `ffprobe.exe` permanecem em `ffmpeg/bin/` dentro do projeto.

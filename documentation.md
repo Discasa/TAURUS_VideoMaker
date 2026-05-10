@@ -6,9 +6,9 @@ O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual bas
 
 ## Versão do Script
 
-A versão atual do script é `8.0.66`.
+A versão atual do script é `8.0.72`.
 
-O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
+O projeto segue versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar a partir da versão publicada atual, por exemplo `8.0.73`, `8.0.74` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
 Sempre que a versão do script mudar, atualize:
 
@@ -36,7 +36,7 @@ Não há mais `start.bat`. O ponto de entrada oficial do projeto é o arquivo [V
 O projeto agora separa interface e backend:
 
 - [VideoMaker.py](VideoMaker.py) contém somente a interface PySide6, o mapeamento da UI para a configuração e os controles de tela.
-- [engine.py](engine.py) contém o backend: dataclasses de configuração, persistência em JSON, controle de processo, chamadas de FFmpeg/FFprobe, `RenderEngine` e `WorkerRender`.
+- [engine.py](engine.py) contém o backend: dataclasses de configuração, persistência em INI, controle de processo, chamadas de FFmpeg/FFprobe, `RenderEngine` e `WorkerRender`.
 
 ## FFmpeg Local
 
@@ -96,46 +96,57 @@ A seção `Renderização` inclui o controle `Zoom da interface`, com faixa de 5
 
 Na primeira abertura, sem arquivo de configuração salvo, o aplicativo calcula um zoom inicial pela área útil da tela. Isso evita que a janela nasça maior que monitores pequenos ou ambientes Windows com escala alta, como 1366x768 em 150%.
 
-Depois que o usuário ajusta o slider, o valor é salvo em `video_creator_config.json` e reutilizado nas próximas aberturas.
+Depois que o usuário ajusta o slider, o valor é salvo em `%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini` e reutilizado nas próximas aberturas.
 
 ## Arquivos Gerados Localmente
 
+As configurações da interface ficam em:
+
+```text
+%LOCALAPPDATA%\TAURUS_VideoMaker\settings.ini
+```
+
+O cache de renderização, preview e fontes fica em:
+
+```text
+%LOCALAPPDATA%\TAURUS_VideoMaker\cache\
+```
+
+Logs de erro do FFmpeg ficam em:
+
+```text
+%LOCALAPPDATA%\TAURUS_VideoMaker\logs\
+```
+
 Estes arquivos e pastas são estado local da máquina e não devem ser versionados:
 
-- `_temp_audio_processado/`
-- `video_creator_config.json`
-- `erro_ffmpeg_log.txt`
-- `render_AAAA-MM-DD_HH-MM-SS/`
+- `video_creator_config.json` antigo, se ainda existir de versões anteriores;
+- `_temp_audio_processado/` antigo, se ainda existir de versões anteriores;
+- `erro_ffmpeg_log.txt` antigo, se ainda existir de versões anteriores;
 - `build/`
 - `dist/`
 - pastas de saída de renderização
 
-Quando a pasta de saída fica vazia, o aplicativo cria automaticamente uma subpasta ao lado do script com o formato `render_AAAA-MM-DD_HH-MM-SS`. Isso evita sobrescrever vídeos gerados anteriormente.
+Quando a pasta de saída fica vazia, o aplicativo salva o vídeo automaticamente na Área de Trabalho do usuário atual. O nome do arquivo final continua usando data e hora para evitar sobrescrever vídeos gerados anteriormente.
 
-## Preparação Para Executável
+O cache de renderização é limpo antes e depois de cada render. Além disso, itens antigos dentro de `cache` são removidos automaticamente, evitando crescimento indefinido em disco.
 
-O script agora usa dois conceitos diferentes de caminho:
+## Distribuição Atual
 
-- pasta do aplicativo: onde ficam configurações, logs e arquivos temporários;
+O repositório atual mantém o aplicativo como execução pelo código-fonte. O empacotamento com PyInstaller não faz parte do layout ativo deste projeto.
+
+O script usa dois conceitos diferentes de caminho:
+
+- pasta de dados do usuário: `%LOCALAPPDATA%\TAURUS_VideoMaker`, onde ficam configurações, logs e cache;
 - pasta de recursos: onde ficam arquivos empacotados, como `ffmpeg.exe` e `ffprobe.exe`.
 
-Em modo fonte, as duas apontam para a pasta do projeto. Em modo executável empacotado com PyInstaller, a pasta de recursos aponta para o diretório temporário interno extraído pelo pacote, enquanto configurações e logs continuam ao lado do executável final.
-
-O arquivo [packaging/TAURUS_Video_Maker.spec](packaging/TAURUS_Video_Maker.spec) já declara os binários do FFmpeg como recursos internos no caminho `ffmpeg/bin/`.
-
-Quando chegar a hora de gerar o executável, o comando esperado é:
-
-```powershell
-.\build_executable.ps1
-```
-
-O resultado será gerado em `dist/TAURUS Video Maker.exe`.
+Em modo fonte, os recursos apontam para a pasta do projeto. O FFmpeg local deve permanecer em `ffmpeg/bin/`, enquanto configurações, logs e cache continuam no AppData local do usuário.
 
 ## Janelas de Console do FFmpeg
 
-O aplicativo principal é uma interface gráfica e o executável futuro está configurado para ser gerado sem console. Mesmo assim, programas externos chamados pelo aplicativo, como `ffmpeg.exe` e `ffprobe.exe`, podem abrir janelas próprias se forem iniciados sem flags específicas do Windows.
+O aplicativo principal é uma interface gráfica. Mesmo assim, programas externos chamados pelo aplicativo, como `ffmpeg.exe` e `ffprobe.exe`, podem abrir janelas próprias se forem iniciados sem flags específicas do Windows.
 
-A partir da versão `8.0.1`, todas as chamadas internas de FFmpeg e FFprobe usam `CREATE_NO_WINDOW` e `STARTF_USESHOWWINDOW` para ocultar janelas de console dos subprocessos. Isso vale tanto para execução como `.py`, `.pyw` quanto para o executável futuro gerado pelo PyInstaller.
+A partir da versão `8.0.1`, todas as chamadas internas de FFmpeg e FFprobe usam `CREATE_NO_WINDOW` e `STARTF_USESHOWWINDOW` para ocultar janelas de console dos subprocessos. Isso vale para a execução pelo código-fonte.
 
 ## Validação Recomendada
 
