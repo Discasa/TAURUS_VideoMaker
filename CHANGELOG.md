@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.61 - 2026-05-10
+
+- Corrigido o alinhamento das linhas com toggle e seletor de cor nos painéis de texto.
+- Reduzido o fundo do texto usando a caixa visual real da fonte no preview e borda zero no FFmpeg.
+
 ## 8.0.60 - 2026-05-10
 
 - Alinhados à esquerda os rótulos dos painéis de ajustes para melhor aproveitamento visual da coluna direita.

@@ -49,7 +49,7 @@ PREVIEW_ASPECT_RATIO = 16 / 9
 LOG_HEIGHT_OPEN = 260
 
 try:
-    from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl, Signal
+    from PySide6.QtCore import QPointF, Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl, Signal
     from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen, QPixmap, QTextCursor
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
     from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -813,25 +813,26 @@ class PreviewCanvas(QWidget):
         font.setWeight(QFont.Weight(max(100, min(900, int(weight)))))
         painter.setFont(font)
         metrics = QFontMetrics(font)
-        bounds = metrics.boundingRect(text).adjusted(-10, -7, 10, 7)
+        bounds = QRectF(metrics.tightBoundingRect(text))
         rect = self._positioned_rect(frame, bounds.size(), position, int(margin_x * scale), int(margin_y * scale))
+        text_origin = QPointF(rect.left() - bounds.left(), rect.top() - bounds.top())
 
         if box:
             painter.setPen(Qt.NoPen)
             background = QColor(limpar_hex(box_color, "#000000"))
             background.setAlphaF(max(0, min(1, box_opacity)))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect.adjusted(-1, 0, 1, 0), 3, 3)
+            painter.drawRoundedRect(rect, 2, 2)
 
         shadow = QColor(limpar_hex(shadow_color, "#000000"))
         shadow.setAlphaF(max(0, min(1, shadow_opacity)))
         painter.setPen(shadow)
-        painter.drawText(rect.adjusted(2, 2, 2, 2), Qt.AlignCenter, text)
+        painter.drawText(text_origin + QPointF(2, 2), text)
 
         main_color = QColor(limpar_hex(color))
         main_color.setAlphaF(max(0, min(1, opacity)))
         painter.setPen(main_color)
-        painter.drawText(rect, Qt.AlignCenter, text)
+        painter.drawText(text_origin, text)
 
     def _draw_title(self, painter: QPainter, frame: QRectF):
         cfg = self.config.fonte_texto
@@ -1175,9 +1176,9 @@ class MainUI(QWidget):
         add_row(form, 1, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
         add_row(form, 2, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
         add_row(form, 3, "Opacidade", self.font_titles_opc)
-        add_wide(form, 4, self.toggle_color_row(self.font_titles_shadow_enabled, self.font_titles_shadow_color))
+        add_row(form, 4, "Sombra do texto", self.toggle_color_row(self.font_titles_shadow_enabled, self.font_titles_shadow_color))
         add_row(form, 5, "Opacidade", self.font_titles_shadow)
-        add_wide(form, 6, self.toggle_color_row(self.font_titles_background_box, self.font_titles_background_color))
+        add_row(form, 6, "Fundo do texto", self.toggle_color_row(self.font_titles_background_box, self.font_titles_background_color))
         add_row(form, 7, "Opacidade", self.font_titles_background_opacity)
         add_row(form, 8, "Digita por", self.font_titles_typ)
         add_row(form, 9, "Apaga por", self.font_titles_era)
@@ -1313,10 +1314,10 @@ class MainUI(QWidget):
         add_row(form, 2, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
         add_row(form, 3, "Peso", self.intro_font_weight)
         add_row(form, 4, "Opacidade", self.intro_opacity)
-        add_wide(form, 5, self.toggle_color_row(self.intro_shadow_enabled, self.intro_shadow_color))
+        add_row(form, 5, "Sombra do texto", self.toggle_color_row(self.intro_shadow_enabled, self.intro_shadow_color))
         add_row(form, 6, "Tamanho", self.intro_shadow_size)
         add_row(form, 7, "Opacidade", self.intro_shadow_opacity)
-        add_wide(form, 8, self.toggle_color_row(self.intro_background_box, self.intro_background_color))
+        add_row(form, 8, "Fundo do texto", self.toggle_color_row(self.intro_background_box, self.intro_background_color))
         add_row(form, 9, "Opacidade", self.intro_box_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
@@ -1387,9 +1388,9 @@ class MainUI(QWidget):
         add_row(form, 6, "Margens", margins_widget(self.wm_mx, self.wm_my))
         add_row(form, 7, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
         add_row(form, 8, "Opacidade", self.wm_opacity)
-        add_wide(form, 9, self.toggle_color_row(self.wm_shadow_enabled, self.wm_shadow_color))
+        add_row(form, 9, "Sombra do texto", self.toggle_color_row(self.wm_shadow_enabled, self.wm_shadow_color))
         add_row(form, 10, "Opacidade", self.wm_shadow)
-        add_wide(form, 11, self.toggle_color_row(self.wm_background_box, self.wm_background_color))
+        add_row(form, 11, "Fundo do texto", self.toggle_color_row(self.wm_background_box, self.wm_background_color))
         add_row(form, 12, "Opacidade", self.wm_background_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
@@ -1475,13 +1476,8 @@ class MainUI(QWidget):
         layout = QHBoxLayout(box)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
-        label_text = toggle.text()
         toggle.setText("")
-        label = QLabel(label_text)
-        label.setObjectName("Subtle")
-        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
-        label.setMinimumWidth(120)
-        layout.addWidget(label)
+        toggle.setFixedSize(ToggleSwitch.TRACK_W, 26)
         layout.addWidget(toggle)
         layout.addStretch(1)
         layout.addWidget(color_widget)
