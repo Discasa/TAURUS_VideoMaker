@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.58 - 2026-05-10
+
+- Reduzido novamente o padding do fundo do texto para ficar mais rente à fonte.
+
 ## 8.0.57 - 2026-05-10
 
 - O volume do preview agora é salvo nas configurações e inicia em 100% quando não há configuração salva.

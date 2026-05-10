@@ -825,7 +825,7 @@ class PreviewCanvas(QWidget):
             background = QColor(limpar_hex(box_color, "#000000"))
             background.setAlphaF(max(0, min(1, box_opacity)))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect.adjusted(-4, -2, 4, 2), 5, 5)
+            painter.drawRoundedRect(rect.adjusted(-1, 0, 1, 0), 3, 3)
 
         shadow = QColor(limpar_hex(shadow_color, "#000000"))
         shadow.setAlphaF(max(0, min(1, shadow_opacity)))
