@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.63 - 2026-05-10
+
+- Adicionados controles de tamanho da sombra e do fundo para textos do vídeo.
+- Definido o fundo padrão do texto com 4 px em cima, 6 px embaixo e 6 px nas laterais.
+
 ## 8.0.62 - 2026-05-10
 
 - Corrigida a área clicável dos toggles para responder em todo o switch.

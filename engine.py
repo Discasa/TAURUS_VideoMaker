@@ -31,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.62"
+APP_VERSION = "8.0.63"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -102,9 +102,11 @@ class FonteTextoConfig:
     shadow_enabled: bool = True
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
+    shadow_size: float = 2.0
     background_box: bool = False
     background_color: str = "#000000"
     background_opacity: float = 0.35
+    background_padding: float = 6.0
 
 
 @dataclass
@@ -127,9 +129,11 @@ class WatermarkConfig:
     shadow_enabled: bool = True
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
+    shadow_size: float = 2.0
     background_box: bool = False
     background_color: str = "#000000"
     background_opacity: float = 0.35
+    background_padding: float = 6.0
 
 
 @dataclass
@@ -169,10 +173,11 @@ class IntroTextConfig:
     shadow_enabled: bool = True
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.65
-    shadow_size: float = 1.4
+    shadow_size: float = 2.0
     background_box: bool = False
     background_color: str = "#000000"
     box_opacity: float = 0.35
+    background_padding: float = 6.0
 
 
 @dataclass
@@ -560,6 +565,16 @@ def cor_drawtext(cor_hex: str, opacity: float) -> str:
     cor = limpar_hex(cor_hex).replace("#", "0x")
     opacity = max(0.0, min(1.0, float(opacity)))
     return f"{cor}@{opacity:.3f}"
+
+
+def tamanho_sombra_drawtext(valor: float) -> int:
+    return max(0, min(50, int(round(float(valor)))))
+
+
+def boxborderw_texto(valor: float) -> str:
+    padding = max(0, min(80, int(round(float(valor)))))
+    topo = max(0, padding - 2)
+    return f"{topo}|{padding}|{padding}|{padding}"
 
 
 def opcoes_posicao():
@@ -1011,6 +1026,7 @@ class RenderEngine:
             "centro": ("(w-tw)/2", "(h-th)/2"),
         }
         x, y = posicoes.get(cfg.position, posicoes["inferior_direita"])
+        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0))
 
         opcoes += [
             f"text='{escape_drawtext(cfg.text)}'",
@@ -1019,14 +1035,14 @@ class RenderEngine:
             f"x={x}",
             f"y={y}",
             f"shadowcolor={cor_drawtext(cfg.shadow_color, cfg.shadow_opacity if cfg.shadow_enabled else 0.0)}",
-            "shadowx=2",
-            "shadowy=2",
+            f"shadowx={shadow_size}",
+            f"shadowy={shadow_size}",
         ]
         if cfg.background_box:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(cfg.background_color, cfg.background_opacity)}",
-                "boxborderw=3|0",
+                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0))}",
             ]
         return "drawtext=" + ":".join(opcoes)
 
@@ -1109,6 +1125,7 @@ class RenderEngine:
         opacity = float(getattr(cfg, "opacity", 0.93))
         shadow_opacity = float(getattr(cfg, "shadow_opacity", 0.60)) if getattr(cfg, "shadow_enabled", True) else 0.0
         shadow_color = getattr(cfg, "shadow_color", "#000000")
+        shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0))
         font_family = getattr(cfg, "font_family", "Georgia")
         bold = int(getattr(cfg, "font_weight", 400)) >= 600 if intro else False
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(font_family, bold))
@@ -1134,8 +1151,8 @@ class RenderEngine:
             f"x={x}",
             f"y={y}",
             f"shadowcolor={cor_drawtext(shadow_color, shadow_opacity)}",
-            "shadowx=2",
-            "shadowy=2",
+            f"shadowx={shadow_size}",
+            f"shadowy={shadow_size}",
             f"enable='between(t,{inicio:.3f},{fim:.3f})'",
         ]
 
@@ -1143,7 +1160,7 @@ class RenderEngine:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(getattr(cfg, 'background_color', '#000000'), float(getattr(cfg, 'box_opacity', getattr(cfg, 'background_opacity', 0.35))))}",
-                "boxborderw=3|0",
+                f"boxborderw={boxborderw_texto(getattr(cfg, 'background_padding', 6.0))}",
             ]
 
         return f"[{entrada}]drawtext=" + ":".join(opcoes) + f"[{saida}]"

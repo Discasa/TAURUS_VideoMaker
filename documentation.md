@@ -6,7 +6,7 @@ O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual bas
 
 ## Versão do Script
 
-A versão atual do script é `8.0.62`.
+A versão atual do script é `8.0.63`.
 
 O projeto passa a seguir versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar para `8.0.1`, `8.0.2`, `8.0.3` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
@@ -78,6 +78,17 @@ Mídia visual base:
 - `.ogg`
 - `.opus`
 - `.wma`
+
+## Textos no Vídeo
+
+Os textos de títulos das músicas, frases de introdução e marca d'água em texto compartilham os mesmos controles principais:
+
+- fonte, tamanho e cor;
+- opacidade da fonte;
+- sombra ativável, cor da sombra, tamanho da sombra e opacidade da sombra;
+- fundo ativável, cor do fundo, tamanho do fundo e opacidade do fundo.
+
+O tamanho padrão do fundo usa 6 px como base: 4 px acima do texto, 6 px abaixo e 6 px nas laterais. Esse valor pode ser ajustado pelo slider `Tam. fundo`.
 
 ## Arquivos Gerados Localmente
 
