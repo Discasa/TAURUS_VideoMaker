@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.62 - 2026-05-10
+
+- Corrigida a área clicável dos toggles para responder em todo o switch.
+- Ajustado o fundo do texto para manter respiro vertical de 3 px sem inflar as laterais.
+
 ## 8.0.61 - 2026-05-10
 
 - Corrigido o alinhamento das linhas com toggle e seletor de cor nos painéis de texto.

@@ -469,6 +469,9 @@ class ToggleSwitch(QCheckBox):
         label_w = self.fontMetrics().horizontalAdvance(self.text()) if self.text() else 0
         return QSize(self.TRACK_W + (10 + label_w if label_w else 0), 26)
 
+    def hitButton(self, pos):
+        return self.rect().contains(pos)
+
     def get_offset(self):
         return self._offset
 
@@ -822,7 +825,7 @@ class PreviewCanvas(QWidget):
             background = QColor(limpar_hex(box_color, "#000000"))
             background.setAlphaF(max(0, min(1, box_opacity)))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect, 2, 2)
+            painter.drawRoundedRect(rect.adjusted(0, -3, 0, 3), 2, 2)
 
         shadow = QColor(limpar_hex(shadow_color, "#000000"))
         shadow.setAlphaF(max(0, min(1, shadow_opacity)))

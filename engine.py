@@ -31,7 +31,7 @@ except ImportError:
 # CONFIGURAÇÕES BASE
 # ==========================
 
-APP_VERSION = "8.0.61"
+APP_VERSION = "8.0.62"
 
 
 def obter_diretorio_aplicacao() -> Path:
@@ -1026,7 +1026,7 @@ class RenderEngine:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(cfg.background_color, cfg.background_opacity)}",
-                "boxborderw=0",
+                "boxborderw=3|0",
             ]
         return "drawtext=" + ":".join(opcoes)
 
@@ -1143,7 +1143,7 @@ class RenderEngine:
             opcoes += [
                 "box=1",
                 f"boxcolor={cor_drawtext(getattr(cfg, 'background_color', '#000000'), float(getattr(cfg, 'box_opacity', getattr(cfg, 'background_opacity', 0.35))))}",
-                "boxborderw=0",
+                "boxborderw=3|0",
             ]
 
         return f"[{entrada}]drawtext=" + ":".join(opcoes) + f"[{saida}]"
