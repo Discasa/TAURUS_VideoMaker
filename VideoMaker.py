@@ -368,7 +368,7 @@ def setup_form(form: QGridLayout):
 def add_row(form: QGridLayout, row: int, label: str, widget: QWidget):
     lbl = QLabel(label)
     lbl.setObjectName("Subtle")
-    lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    lbl.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
     form.addWidget(lbl, row, 0)
     form.addWidget(widget, row, 1)
     return lbl
@@ -1479,7 +1479,7 @@ class MainUI(QWidget):
         toggle.setText("")
         label = QLabel(label_text)
         label.setObjectName("Subtle")
-        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
         label.setMinimumWidth(120)
         layout.addWidget(label)
         layout.addWidget(toggle)

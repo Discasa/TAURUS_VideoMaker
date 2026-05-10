@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.60 - 2026-05-10
+
+- Alinhados à esquerda os rótulos dos painéis de ajustes para melhor aproveitamento visual da coluna direita.
+
 ## 8.0.59 - 2026-05-10
 
 - Corrigido o desenho dos seletores circulares de cor para manter círculos perfeitos e menores.
