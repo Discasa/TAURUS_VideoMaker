@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.57 - 2026-05-10
+
+- O volume do preview agora é salvo nas configurações e inicia em 100% quando não há configuração salva.
+- Reordenados os controles de texto para priorizar posição, margens, fonte, opacidade, sombra e fundo.
+- Substituídos campos de cor por círculos clicáveis com color picker.
+- Reduzido o padding do fundo do texto no preview e no render.
+
 ## 8.0.56 - 2026-05-09
 
 - Movida a configuração de Títulos para dentro da aba Músicas.

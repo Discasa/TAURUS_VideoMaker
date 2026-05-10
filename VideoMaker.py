@@ -49,7 +49,7 @@ PREVIEW_ASPECT_RATIO = 16 / 9
 LOG_HEIGHT_OPEN = 260
 
 try:
-    from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl
+    from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl, Signal
     from PySide6.QtGui import QColor, QCursor, QFont, QFontDatabase, QFontMetrics, QPainter, QPen, QPixmap, QTextCursor
     from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
     from PySide6.QtMultimediaWidgets import QVideoWidget
@@ -541,6 +541,48 @@ class ColorEdit(QLineEdit):
         """)
 
 
+class ColorSwatch(QPushButton):
+    colorChanged = Signal(str)
+
+    def __init__(self, value: str = "#FFFFFF"):
+        super().__init__("")
+        self._color = ""
+        self.setCursor(QCursor(Qt.PointingHandCursor))
+        self.setFixedSize(28, 28)
+        self.setToolTip("Escolher cor")
+        self.clicked.connect(self.choose)
+        self.setText(value)
+
+    def text(self) -> str:
+        return self._color
+
+    def setText(self, value: str):
+        color = limpar_hex(value, self._color)
+        if color == self._color:
+            return
+        self._color = color
+        self.setStyleSheet(f"""
+            QPushButton {{
+                background: {color};
+                border: 2px solid #31415C;
+                border-radius: 14px;
+                min-width: 28px;
+                max-width: 28px;
+                min-height: 28px;
+                max-height: 28px;
+            }}
+            QPushButton:hover {{
+                border: 2px solid #6FB1FF;
+            }}
+        """)
+        self.colorChanged.emit(color)
+
+    def choose(self):
+        color = QColorDialog.getColor(QColor(limpar_hex(self._color)), self)
+        if color.isValid():
+            self.setText(color.name().upper())
+
+
 class DecimalSlider(QWidget):
     def __init__(self, minimum: float, maximum: float, step: float, value: float, decimals: int = 2):
         super().__init__()
@@ -783,7 +825,7 @@ class PreviewCanvas(QWidget):
             background = QColor(limpar_hex(box_color, "#000000"))
             background.setAlphaF(max(0, min(1, box_opacity)))
             painter.setBrush(background)
-            painter.drawRoundedRect(rect.adjusted(-8, -5, 8, 5), 7, 7)
+            painter.drawRoundedRect(rect.adjusted(-4, -2, 4, 2), 5, 5)
 
         shadow = QColor(limpar_hex(shadow_color, "#000000"))
         shadow.setAlphaF(max(0, min(1, shadow_opacity)))
@@ -993,7 +1035,7 @@ class MainUI(QWidget):
         self.preview = PreviewCanvas()
         self.video_player = QMediaPlayer(self)
         self.preview_audio = QAudioOutput(self)
-        self.preview_audio.setVolume(0.50)
+        self.preview_audio.setVolume(1.0)
         self.video_player.setAudioOutput(self.preview_audio)
         self.video_widget = QVideoWidget()
         self.video_widget.setStyleSheet("background: #000000; border: none;")
@@ -1016,13 +1058,13 @@ class MainUI(QWidget):
         volume_row.setContentsMargins(16, 0, 16, 0)
         volume_row.setSpacing(6)
         volume_row.addStretch(1)
-        self.preview_volume_label = QLabel("50%")
+        self.preview_volume_label = QLabel("100%")
         self.preview_volume_label.setObjectName("Subtle")
         self.preview_volume_label.setFixedWidth(30)
         self.preview_volume_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
         self.preview_volume_slider = QSlider(Qt.Horizontal)
         self.preview_volume_slider.setRange(0, 20)
-        self.preview_volume_slider.setValue(10)
+        self.preview_volume_slider.setValue(20)
         self.preview_volume_slider.setFixedWidth(148)
         self.preview_volume_slider.valueChanged.connect(self.set_preview_volume)
         volume_row.addWidget(QLabel("Volume"))
@@ -1118,7 +1160,7 @@ class MainUI(QWidget):
 
         self.font_titles = combo_fontes("Georgia")
         self.font_titles_size = QSpinBox(); self.font_titles_size.setRange(8, 160); self.font_titles_size.setValue(34)
-        self.font_titles_color = ColorEdit("#FFFFFF")
+        self.font_titles_color = ColorSwatch("#FFFFFF")
         self.font_titles_pos = combo_posicao("inferior_esquerda")
         self.font_titles_mx = QSpinBox(); self.font_titles_mx.setRange(0, 800); self.font_titles_mx.setValue(45)
         self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 800); self.font_titles_my.setValue(42)
@@ -1127,27 +1169,22 @@ class MainUI(QWidget):
         self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.05, 0.95)
         self.font_titles_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.font_titles_shadow_enabled.setChecked(True)
-        self.font_titles_shadow_color = ColorEdit("#000000")
+        self.font_titles_shadow_color = ColorSwatch("#000000")
         self.font_titles_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
         self.font_titles_background_box = ToggleSwitch("Fundo do texto")
-        self.font_titles_background_color = ColorEdit("#000000")
+        self.font_titles_background_color = ColorSwatch("#000000")
         self.font_titles_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
 
-        color_row = self.color_row(self.font_titles_color)
-        add_row(form, 0, "Fonte", self.font_titles)
-        add_row(form, 1, "Tamanho", self.font_titles_size)
-        add_row(form, 2, "Cor", color_row)
-        add_row(form, 3, "Posição", self.font_titles_pos)
-        add_row(form, 4, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
-        add_row(form, 5, "Digita por", self.font_titles_typ)
-        add_row(form, 6, "Apaga por", self.font_titles_era)
-        add_row(form, 7, "Opacidade", self.font_titles_opc)
-        add_wide(form, 8, self.font_titles_shadow_enabled)
-        add_row(form, 9, "Cor sombra", self.color_row(self.font_titles_shadow_color))
-        add_row(form, 10, "Opac. sombra", self.font_titles_shadow)
-        add_wide(form, 11, self.font_titles_background_box)
-        add_row(form, 12, "Cor fundo", self.color_row(self.font_titles_background_color))
-        add_row(form, 13, "Opac. fundo", self.font_titles_background_opacity)
+        add_row(form, 0, "Posição", self.font_titles_pos)
+        add_row(form, 1, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
+        add_row(form, 2, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
+        add_row(form, 3, "Opacidade", self.font_titles_opc)
+        add_wide(form, 4, self.toggle_color_row(self.font_titles_shadow_enabled, self.font_titles_shadow_color))
+        add_row(form, 5, "Opacidade", self.font_titles_shadow)
+        add_wide(form, 6, self.toggle_color_row(self.font_titles_background_box, self.font_titles_background_color))
+        add_row(form, 7, "Opacidade", self.font_titles_background_opacity)
+        add_row(form, 8, "Digita por", self.font_titles_typ)
+        add_row(form, 9, "Apaga por", self.font_titles_era)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1261,34 +1298,30 @@ class MainUI(QWidget):
         self.intro_font = combo_fontes("Georgia")
         self.intro_font_size = QSpinBox(); self.intro_font_size.setRange(8, 180); self.intro_font_size.setValue(48)
         self.intro_font_weight = QSpinBox(); self.intro_font_weight.setRange(100, 900); self.intro_font_weight.setSingleStep(50); self.intro_font_weight.setValue(700)
-        self.intro_color = ColorEdit("#FFFFFF")
+        self.intro_color = ColorSwatch("#FFFFFF")
         self.intro_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.90)
         self.intro_pos = combo_posicao("inferior_esquerda")
         self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
         self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
-        self.intro_shadow_color = ColorEdit("#000000")
+        self.intro_shadow_color = ColorSwatch("#000000")
         self.intro_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.intro_shadow_enabled.setChecked(True)
         self.intro_shadow_size = DecimalSlider(0.0, 10.0, 0.5, 1.5, decimals=1)
         self.intro_shadow_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.65)
         self.intro_background_box = ToggleSwitch("Fundo do texto")
-        self.intro_background_color = ColorEdit("#000000")
+        self.intro_background_color = ColorSwatch("#000000")
         self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
 
-        add_row(form, 0, "Fonte", self.intro_font)
-        add_row(form, 1, "Tamanho", self.intro_font_size)
-        add_row(form, 2, "Peso", self.intro_font_weight)
-        add_row(form, 3, "Cor", self.color_row(self.intro_color))
+        add_row(form, 0, "Posição", self.intro_pos)
+        add_row(form, 1, "Margens", margins_widget(self.intro_mx, self.intro_my))
+        add_row(form, 2, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
+        add_row(form, 3, "Peso", self.intro_font_weight)
         add_row(form, 4, "Opacidade", self.intro_opacity)
-        add_row(form, 5, "Posição", self.intro_pos)
-        add_row(form, 6, "Margens", margins_widget(self.intro_mx, self.intro_my))
-        add_wide(form, 7, self.intro_shadow_enabled)
-        add_row(form, 8, "Cor sombra", self.color_row(self.intro_shadow_color))
-        add_row(form, 9, "Sombra", self.intro_shadow_size)
-        add_row(form, 10, "Opac. sombra", self.intro_shadow_opacity)
-        add_wide(form, 11, self.intro_background_box)
-        add_row(form, 12, "Cor fundo", self.color_row(self.intro_background_color))
-        add_row(form, 13, "Opac. fundo", self.intro_box_opacity)
+        add_wide(form, 5, self.toggle_color_row(self.intro_shadow_enabled, self.intro_shadow_color))
+        add_row(form, 6, "Tamanho", self.intro_shadow_size)
+        add_row(form, 7, "Opacidade", self.intro_shadow_opacity)
+        add_wide(form, 8, self.toggle_color_row(self.intro_background_box, self.intro_background_color))
+        add_row(form, 9, "Opacidade", self.intro_box_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -1336,17 +1369,17 @@ class MainUI(QWidget):
         self.wm_width = QSpinBox(); self.wm_width.setRange(16, 1000); self.wm_width.setValue(180)
         self.wm_font = combo_fontes("Segoe UI Symbol")
         self.wm_font_size = QSpinBox(); self.wm_font_size.setRange(8, 180); self.wm_font_size.setValue(44)
-        self.wm_color = ColorEdit("#FFFFFF")
+        self.wm_color = ColorSwatch("#FFFFFF")
         self.wm_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.70)
         self.wm_pos = combo_posicao("inferior_direita")
         self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
         self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
-        self.wm_shadow_color = ColorEdit("#000000")
+        self.wm_shadow_color = ColorSwatch("#000000")
         self.wm_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.wm_shadow_enabled.setChecked(True)
         self.wm_shadow = DecimalSlider(0.0, 1.0, 0.05, 0.60)
         self.wm_background_box = ToggleSwitch("Fundo do texto")
-        self.wm_background_color = ColorEdit("#000000")
+        self.wm_background_color = ColorSwatch("#000000")
         self.wm_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         add_wide(form, 0, self.wm_enabled)
         add_row(form, 1, "Tipo", self.wm_mode)
@@ -1354,18 +1387,14 @@ class MainUI(QWidget):
         self.wm_preview_label = add_row(form, 2, "Preview", self.wm_image_preview)
         add_row(form, 3, "Imagem", self.wm_img)
         add_row(form, 4, "Largura img.", self.wm_width)
-        add_row(form, 5, "Fonte", self.wm_font)
-        add_row(form, 6, "Tamanho", self.wm_font_size)
-        add_row(form, 7, "Cor", self.color_row(self.wm_color))
+        add_row(form, 5, "Posição", self.wm_pos)
+        add_row(form, 6, "Margens", margins_widget(self.wm_mx, self.wm_my))
+        add_row(form, 7, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
         add_row(form, 8, "Opacidade", self.wm_opacity)
-        add_row(form, 9, "Posição", self.wm_pos)
-        add_row(form, 10, "Margens", margins_widget(self.wm_mx, self.wm_my))
-        add_wide(form, 11, self.wm_shadow_enabled)
-        add_row(form, 12, "Cor sombra", self.color_row(self.wm_shadow_color))
-        add_row(form, 13, "Opac. sombra", self.wm_shadow)
-        add_wide(form, 14, self.wm_background_box)
-        add_row(form, 15, "Cor fundo", self.color_row(self.wm_background_color))
-        add_row(form, 16, "Opac. fundo", self.wm_background_opacity)
+        add_wide(form, 9, self.toggle_color_row(self.wm_shadow_enabled, self.wm_shadow_color))
+        add_row(form, 10, "Opacidade", self.wm_shadow)
+        add_wide(form, 11, self.toggle_color_row(self.wm_background_box, self.wm_background_color))
+        add_row(form, 12, "Opacidade", self.wm_background_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
@@ -1421,6 +1450,8 @@ class MainUI(QWidget):
         return tab
 
     def color_row(self, edit: ColorEdit) -> QWidget:
+        if isinstance(edit, ColorSwatch):
+            return edit
         box = QWidget()
         layout = QHBoxLayout(box)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -1430,6 +1461,26 @@ class MainUI(QWidget):
         button.clicked.connect(lambda: self.pick_color(edit))
         layout.addWidget(edit, 1)
         layout.addWidget(button)
+        return box
+
+    def font_inline_row(self, font_widget: QWidget, size_widget: QWidget, color_widget: ColorSwatch) -> QWidget:
+        box = QWidget()
+        layout = QHBoxLayout(box)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        size_widget.setFixedWidth(72)
+        layout.addWidget(font_widget, 1)
+        layout.addWidget(size_widget)
+        layout.addWidget(color_widget)
+        return box
+
+    def toggle_color_row(self, toggle: ToggleSwitch, color_widget: ColorSwatch) -> QWidget:
+        box = QWidget()
+        layout = QHBoxLayout(box)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+        layout.addWidget(toggle, 1)
+        layout.addWidget(color_widget)
         return box
 
     def set_preview_group_height(self, height: int):
@@ -1486,6 +1537,7 @@ class MainUI(QWidget):
         volume = max(0.0, min(1.0, value / 20.0))
         self.preview_audio.setVolume(volume)
         self.preview_volume_label.setText(f"{value * 5}%")
+        self.trigger_autosave()
 
     def show_static_preview(self):
         self.video_player.stop()
@@ -1676,6 +1728,9 @@ class MainUI(QWidget):
                     "background_volume": cfg.background_volume,
                 },
                 "normalizacao": asdict(cfg.normalizacao),
+                "preview": {
+                    "volume": self.preview_volume_slider.value() / 20.0,
+                },
                 "fonte_texto": asdict(cfg.fonte_texto),
                 "titulos_musicas": cfg.track_titles,
                 "watermark": asdict(cfg.watermark),
@@ -1711,6 +1766,9 @@ class MainUI(QWidget):
                 self.set_norm.setChecked(bool(norm.get("enabled", True)))
                 self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
                 self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
+
+            preview = data.get("preview", {})
+            self.preview_volume_slider.setValue(int(float(preview.get("volume", 1.0)) * 20))
 
             self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
             self.refresh_track_titles_table(data.get("titulos_musicas", {}))
@@ -1897,6 +1955,8 @@ class MainUI(QWidget):
                 child.valueChanged.connect(self.trigger_autosave)
             elif isinstance(child, QCheckBox):
                 child.stateChanged.connect(self.trigger_autosave)
+            elif isinstance(child, ColorSwatch):
+                child.colorChanged.connect(self.trigger_autosave)
         self.intro_table.itemChanged.connect(self.trigger_autosave)
         self.track_titles_table.itemChanged.connect(self.trigger_autosave)
 
