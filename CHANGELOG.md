@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.59 - 2026-05-10
+
+- Corrigido o desenho dos seletores circulares de cor para manter círculos perfeitos e menores.
+- Reorganizadas as linhas de sombra e fundo do texto para mostrar descrição, toggle e seletor de cor na mesma ordem.
+
 ## 8.0.58 - 2026-05-10
 
 - Reduzido novamente o padding do fundo do texto para ficar mais rente à fonte.

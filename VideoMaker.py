@@ -548,8 +548,9 @@ class ColorSwatch(QPushButton):
         super().__init__("")
         self._color = ""
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.setFixedSize(28, 28)
+        self.setFixedSize(24, 24)
         self.setToolTip("Escolher cor")
+        self.setFlat(True)
         self.clicked.connect(self.choose)
         self.setText(value)
 
@@ -561,26 +562,21 @@ class ColorSwatch(QPushButton):
         if color == self._color:
             return
         self._color = color
-        self.setStyleSheet(f"""
-            QPushButton {{
-                background: {color};
-                border: 2px solid #31415C;
-                border-radius: 14px;
-                min-width: 28px;
-                max-width: 28px;
-                min-height: 28px;
-                max-height: 28px;
-            }}
-            QPushButton:hover {{
-                border: 2px solid #6FB1FF;
-            }}
-        """)
+        self.update()
         self.colorChanged.emit(color)
 
     def choose(self):
         color = QColorDialog.getColor(QColor(limpar_hex(self._color)), self)
         if color.isValid():
             self.setText(color.name().upper())
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = QRectF(1.5, 1.5, self.width() - 3, self.height() - 3)
+        painter.setPen(QPen(QColor("#31415C"), 1.5))
+        painter.setBrush(QColor(limpar_hex(self._color)))
+        painter.drawEllipse(rect)
 
 
 class DecimalSlider(QWidget):
@@ -1479,7 +1475,15 @@ class MainUI(QWidget):
         layout = QHBoxLayout(box)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(8)
-        layout.addWidget(toggle, 1)
+        label_text = toggle.text()
+        toggle.setText("")
+        label = QLabel(label_text)
+        label.setObjectName("Subtle")
+        label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        label.setMinimumWidth(120)
+        layout.addWidget(label)
+        layout.addWidget(toggle)
+        layout.addStretch(1)
         layout.addWidget(color_widget)
         return box
 
