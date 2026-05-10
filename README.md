@@ -4,7 +4,7 @@ TAURUS Video Maker é um aplicativo de desktop para Windows que cria vídeos lo-
 
 ## Versão Atual
 
-O script está na versão `8.0.63`.
+O script está na versão `8.0.64`.
 
 A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.1`, `8.0.2` e assim por diante.
 
@@ -17,6 +17,7 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 - Normalização de loudness com `loudnorm`.
 - Fade in e fade out configuráveis.
 - Texto com nome das faixas, marca d'água e frases de introdução, com controles de fonte, cor, sombra e fundo.
+- Zoom da interface entre 50% e 200% para telas pequenas ou com escala alta do Windows.
 - Configurações salvas automaticamente em JSON ao lado do aplicativo.
 
 ## Requisitos

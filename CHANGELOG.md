@@ -1,5 +1,10 @@
 # Histórico de Mudanças
 
+## 8.0.64 - 2026-05-10
+
+- Adicionado zoom da interface com faixa de 50% a 200%, salvo nas configurações.
+- A primeira abertura agora calcula um zoom menor automaticamente quando a tela disponível é pequena.
+
 ## 8.0.63 - 2026-05-10
 
 - Adicionados controles de tamanho da sombra e do fundo para textos do vídeo.

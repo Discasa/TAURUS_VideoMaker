@@ -47,6 +47,12 @@ PREVIEW_HEIGHT_NORMAL = 380
 PREVIEW_HEIGHT_LOG_OPEN = 270
 PREVIEW_ASPECT_RATIO = 16 / 9
 LOG_HEIGHT_OPEN = 260
+BASE_WINDOW_WIDTH = 1520
+BASE_WINDOW_HEIGHT = 820
+BASE_WINDOW_MIN_WIDTH = 1420
+BASE_WINDOW_MIN_HEIGHT = 740
+UI_ZOOM_MIN = 0.5
+UI_ZOOM_MAX = 2.0
 
 try:
     from PySide6.QtCore import QPointF, Property, QPropertyAnimation, QRectF, QSize, Qt, QTimer, QUrl, Signal
@@ -345,6 +351,77 @@ QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
 """
 
 
+def clamp_zoom(value: float) -> float:
+    return max(UI_ZOOM_MIN, min(UI_ZOOM_MAX, float(value)))
+
+
+def escala(valor: int | float, zoom: float, minimo: int = 1) -> int:
+    return max(minimo, int(round(float(valor) * zoom)))
+
+
+def zoom_stylesheet(zoom: float) -> str:
+    control_height = escala(CONTROL_HEIGHT, zoom, 18)
+    radius = max(4, control_height // 2)
+    tab_padding_y = escala(8, zoom, 3)
+    tab_padding_x = escala(8, zoom, 4)
+    slider_height = escala(24, zoom, 14)
+    slider_handle = escala(14, zoom, 8)
+    slider_groove = escala(6, zoom, 3)
+    return f"""
+* {{
+    font-size: {escala(12, zoom, 8)}px;
+}}
+QLabel#Brand {{
+    font-size: {escala(20, zoom, 12)}px;
+}}
+QLabel#SectionTitle {{
+    font-size: {escala(13, zoom, 8)}px;
+}}
+QLabel#ColumnTitle {{
+    font-size: {escala(16, zoom, 10)}px;
+}}
+QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
+    min-height: {control_height - 2}px;
+    max-height: {control_height - 2}px;
+    border-radius: {radius}px;
+    padding-left: {escala(12, zoom, 5)}px;
+    padding-right: {escala(12, zoom, 5)}px;
+}}
+QComboBox {{
+    padding-right: {escala(36, zoom, 16)}px;
+}}
+QComboBox::drop-down {{
+    width: {escala(32, zoom, 14)}px;
+    border-top-right-radius: {radius}px;
+    border-bottom-right-radius: {radius}px;
+}}
+QTabBar::tab {{
+    padding: {tab_padding_y}px {tab_padding_x}px;
+    min-width: {escala(55, zoom, 28)}px;
+    border-top-left-radius: {escala(11, zoom, 5)}px;
+    border-top-right-radius: {escala(11, zoom, 5)}px;
+}}
+QTextEdit {{
+    border-radius: {escala(14, zoom, 6)}px;
+    padding: {escala(10, zoom, 4)}px {escala(12, zoom, 5)}px;
+}}
+QSlider {{
+    min-height: {slider_height}px;
+    max-height: {slider_height}px;
+}}
+QSlider::groove:horizontal {{
+    height: {slider_groove}px;
+    border-radius: {max(2, slider_groove // 2)}px;
+}}
+QSlider::handle:horizontal {{
+    width: {slider_handle}px;
+    height: {slider_handle}px;
+    margin: -{max(1, (slider_handle - slider_groove) // 2)}px 0;
+    border-radius: {max(4, slider_handle // 2)}px;
+}}
+"""
+
+
 def section(title: str) -> tuple[QFrame, QVBoxLayout]:
     frame = QFrame()
     frame.setObjectName("Section")
@@ -410,6 +487,7 @@ class ActionButton(QPushButton):
     def __init__(self, text: str, kind: str = "normal", width: int = 112):
         super().__init__(text)
         self.kind = kind
+        self.base_width = width
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.setMinimumWidth(width)
         self.setFixedHeight(CONTROL_HEIGHT)
@@ -460,14 +538,21 @@ class ToggleSwitch(QCheckBox):
     def __init__(self, text: str = ""):
         super().__init__(text)
         self._offset = 1.0 if self.isChecked() else 0.0
+        self._zoom = 1.0
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self._anim = QPropertyAnimation(self, b"offset", self)
         self._anim.setDuration(120)
         self.stateChanged.connect(self._animate)
 
+    def set_zoom(self, zoom: float):
+        self._zoom = clamp_zoom(zoom)
+        self.updateGeometry()
+        self.update()
+
     def sizeHint(self):
         label_w = self.fontMetrics().horizontalAdvance(self.text()) if self.text() else 0
-        return QSize(self.TRACK_W + (10 + label_w if label_w else 0), 26)
+        track_w = escala(self.TRACK_W, self._zoom, 20)
+        return QSize(track_w + (escala(10, self._zoom, 4) + label_w if label_w else 0), escala(26, self._zoom, 16))
 
     def hitButton(self, pos):
         return self.rect().contains(pos)
@@ -490,21 +575,25 @@ class ToggleSwitch(QCheckBox):
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        track_y = (self.height() - self.TRACK_H) / 2
-        track = QRectF(0, track_y, self.TRACK_W, self.TRACK_H)
+        track_w = escala(self.TRACK_W, self._zoom, 20)
+        track_h = escala(self.TRACK_H, self._zoom, 10)
+        knob_d = escala(self.KNOB_D, self._zoom, 8)
+        inset = max(1, escala(2, self._zoom, 1))
+        track_y = (self.height() - track_h) / 2
+        track = QRectF(0, track_y, track_w, track_h)
         painter.setPen(Qt.NoPen)
         painter.setBrush(QColor("#2F86FF") if self.isChecked() else QColor("#3A4658"))
-        painter.drawRoundedRect(track, self.TRACK_H / 2, self.TRACK_H / 2)
+        painter.drawRoundedRect(track, track_h / 2, track_h / 2)
 
-        knob_x = 2 + self._offset * (self.TRACK_W - self.KNOB_D - 4)
-        knob_y = track_y + 2
+        knob_x = inset + self._offset * (track_w - knob_d - (2 * inset))
+        knob_y = track_y + inset
         painter.setBrush(QColor("#EAF2FF"))
-        painter.drawEllipse(QRectF(knob_x, knob_y, self.KNOB_D, self.KNOB_D))
+        painter.drawEllipse(QRectF(knob_x, knob_y, knob_d, knob_d))
 
         if self.text():
             painter.setPen(QColor("#DCEBFF"))
             painter.drawText(
-                self.rect().adjusted(self.TRACK_W + 10, 0, 0, 0),
+                self.rect().adjusted(track_w + escala(10, self._zoom, 4), 0, 0, 0),
                 Qt.AlignVCenter | Qt.AlignLeft,
                 self.text(),
             )
@@ -556,6 +645,11 @@ class ColorSwatch(QPushButton):
         self.setFlat(True)
         self.clicked.connect(self.choose)
         self.setText(value)
+
+    def set_zoom(self, zoom: float):
+        size = escala(24, zoom, 14)
+        self.setFixedSize(size, size)
+        self.update()
 
     def text(self) -> str:
         return self._color
@@ -609,6 +703,10 @@ class DecimalSlider(QWidget):
         self.slider.valueChanged.connect(self._refresh_label)
         self.setValue(value)
 
+    def set_zoom(self, zoom: float):
+        self.slider.setFixedHeight(escala(CONTROL_HEIGHT, zoom, 18))
+        self.label.setFixedWidth(escala(44, zoom, 28))
+
     def _to_slider(self, value: float) -> int:
         return int(round(float(value) * self.scale))
 
@@ -638,6 +736,7 @@ class PathPicker(QWidget):
         self.line.setFixedHeight(CONTROL_HEIGHT)
         self.line.setPlaceholderText(placeholder)
         self.button = ActionButton("Escolher", "ghost")
+        self.button.base_width = 86
         self.button.setFixedWidth(86)
         self.button.clicked.connect(self.choose)
         layout.addWidget(self.line, 1)
@@ -703,6 +802,8 @@ def margins_widget(x_spin: QSpinBox, y_spin: QSpinBox) -> QWidget:
     layout.setContentsMargins(0, 0, 0, 0)
     layout.setSpacing(6)
     for spin in (x_spin, y_spin):
+        spin.base_min_width = 80
+        spin.base_max_width = 90
         spin.setMinimumWidth(80)
         spin.setMaximumWidth(90)
     layout.addWidget(QLabel("X"))
@@ -720,10 +821,11 @@ def remove_spin_buttons(root: QWidget):
         spin.setFixedHeight(CONTROL_HEIGHT)
 
 
-def padronizar_altura_controles(root: QWidget):
+def padronizar_altura_controles(root: QWidget, zoom: float = 1.0):
+    height = escala(CONTROL_HEIGHT, zoom, 18)
     for child in root.findChildren(QWidget):
         if isinstance(child, (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, ActionButton)):
-            child.setFixedHeight(CONTROL_HEIGHT)
+            child.setFixedHeight(height)
 
 
 class PreviewCanvas(QWidget):
@@ -932,9 +1034,11 @@ class MainUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"TAURUS Video Maker {APP_VERSION}")
-        self.resize(1520, 820)
-        self.setMinimumSize(1420, 740)
-        self.setStyleSheet(STYLE_PRIME)
+        self.ui_zoom = 1.0
+        self._zoom_loaded = False
+        self.resize(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT)
+        self.setMinimumSize(escala(BASE_WINDOW_MIN_WIDTH, UI_ZOOM_MIN, 700), escala(BASE_WINDOW_MIN_HEIGHT, UI_ZOOM_MIN, 360))
+        self.setStyleSheet(STYLE_PRIME + zoom_stylesheet(self.ui_zoom))
 
         self.worker = None
         self.render_mode = ""
@@ -954,6 +1058,7 @@ class MainUI(QWidget):
         self.preview_timer.timeout.connect(self.update_preview)
 
         root = QHBoxLayout(self)
+        self.root_layout = root
         root.setContentsMargins(10, 10, 10, 10)
         root.setSpacing(10)
 
@@ -967,11 +1072,13 @@ class MainUI(QWidget):
 
         self.apply_intro_config(IntroTextConfig())
         self.load_config()
+        if not self._zoom_loaded:
+            self.set_ui_zoom_percent(int(round(self.zoom_inicial_para_tela() * 100)), resize_window=True)
         self.connect_auto_signals()
         self.music_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         self.bg_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         remove_spin_buttons(self)
-        padronizar_altura_controles(self)
+        padronizar_altura_controles(self, self.ui_zoom)
         self.update_preview()
 
     # ---------- Construção visual ----------
@@ -1014,8 +1121,25 @@ class MainUI(QWidget):
         self.set_gpu.setChecked(True)
         render_note = QLabel("Se desabilitado, renderiza com CPU.")
         render_note.setObjectName("Subtle")
+        zoom_row = QHBoxLayout()
+        zoom_row.setContentsMargins(0, 0, 0, 0)
+        zoom_row.setSpacing(6)
+        self.ui_zoom_slider = QSlider(Qt.Horizontal)
+        self.ui_zoom_slider.setRange(int(UI_ZOOM_MIN * 100), int(UI_ZOOM_MAX * 100))
+        self.ui_zoom_slider.setSingleStep(5)
+        self.ui_zoom_slider.setPageStep(10)
+        self.ui_zoom_slider.setValue(100)
+        self.ui_zoom_label = QLabel("100%")
+        self.ui_zoom_label.setObjectName("Subtle")
+        self.ui_zoom_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        self.ui_zoom_label.setFixedWidth(44)
+        self.ui_zoom_slider.valueChanged.connect(self.set_ui_zoom_percent)
+        zoom_row.addWidget(self.ui_zoom_slider, 1)
+        zoom_row.addWidget(self.ui_zoom_label)
         render_layout.addWidget(self.set_gpu)
         render_layout.addWidget(render_note)
+        render_layout.addWidget(QLabel("Zoom da interface"))
+        render_layout.addLayout(zoom_row)
         layout.addWidget(render)
         layout.addStretch(1)
         return panel
@@ -1505,10 +1629,110 @@ class MainUI(QWidget):
         layout.addWidget(color_widget)
         return box
 
+    def zoom_inicial_para_tela(self) -> float:
+        screen = QApplication.primaryScreen()
+        if not screen:
+            return 0.75
+        area = screen.availableGeometry()
+        largura = max(320, area.width() - 40)
+        altura = max(260, area.height() - 40)
+        return clamp_zoom(min(1.0, largura / BASE_WINDOW_WIDTH, altura / BASE_WINDOW_HEIGHT))
+
+    def set_ui_zoom_percent(self, value: int, resize_window: bool = False):
+        percent = max(int(UI_ZOOM_MIN * 100), min(int(UI_ZOOM_MAX * 100), int(value)))
+        zoom = clamp_zoom(percent / 100.0)
+        if hasattr(self, "ui_zoom_slider") and self.ui_zoom_slider.value() != percent:
+            self.ui_zoom_slider.blockSignals(True)
+            self.ui_zoom_slider.setValue(percent)
+            self.ui_zoom_slider.blockSignals(False)
+        if hasattr(self, "ui_zoom_label"):
+            self.ui_zoom_label.setText(f"{percent}%")
+        if abs(getattr(self, "ui_zoom", 1.0) - zoom) < 0.001 and not resize_window:
+            return
+        self.ui_zoom = zoom
+        self.aplicar_zoom_interface(resize_window=resize_window)
+
+    def _scale_layout(self, layout):
+        if not layout:
+            return
+        if not hasattr(layout, "_base_margins"):
+            margins = layout.contentsMargins()
+            layout._base_margins = (margins.left(), margins.top(), margins.right(), margins.bottom())
+            layout._base_spacing = layout.spacing()
+        left, top, right, bottom = layout._base_margins
+        layout.setContentsMargins(
+            escala(left, self.ui_zoom, 0),
+            escala(top, self.ui_zoom, 0),
+            escala(right, self.ui_zoom, 0),
+            escala(bottom, self.ui_zoom, 0),
+        )
+        if layout._base_spacing >= 0:
+            layout.setSpacing(escala(layout._base_spacing, self.ui_zoom, 0))
+        for index in range(layout.count()):
+            item = layout.itemAt(index)
+            if item and item.layout():
+                self._scale_layout(item.layout())
+
+    def aplicar_zoom_interface(self, resize_window: bool = False):
+        zoom = self.ui_zoom
+        self.setStyleSheet(STYLE_PRIME + zoom_stylesheet(zoom))
+        self.setMinimumSize(escala(BASE_WINDOW_MIN_WIDTH, zoom, 700), escala(BASE_WINDOW_MIN_HEIGHT, zoom, 360))
+        self._scale_layout(self.layout())
+        if hasattr(self, "left_panel"):
+            self.left_panel.setFixedWidth(escala(285, zoom, 150))
+        if hasattr(self, "right_panel"):
+            self.right_panel.setFixedWidth(escala(500, zoom, 260))
+
+        height = escala(CONTROL_HEIGHT, zoom, 18)
+        for child in self.findChildren(QWidget):
+            if isinstance(child, ActionButton):
+                child.setFixedHeight(height)
+                width = escala(getattr(child, "base_width", 112), zoom, 48)
+                if child.maximumWidth() < 16777215 and child.minimumWidth() == child.maximumWidth():
+                    child.setFixedWidth(width)
+                else:
+                    child.setMinimumWidth(width)
+            elif isinstance(child, (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox)):
+                child.setFixedHeight(height)
+            elif isinstance(child, DecimalSlider):
+                child.set_zoom(zoom)
+            elif isinstance(child, ColorSwatch):
+                child.set_zoom(zoom)
+            elif isinstance(child, ToggleSwitch):
+                child.set_zoom(zoom)
+                if not child.text():
+                    child.setFixedSize(escala(ToggleSwitch.TRACK_W, zoom, 20), escala(26, zoom, 16))
+            elif isinstance(child, QSlider):
+                child.setFixedHeight(height)
+
+        if hasattr(self, "preview_volume_slider"):
+            self.preview_volume_slider.setFixedWidth(escala(148, zoom, 72))
+            self.preview_volume_label.setFixedWidth(escala(30, zoom, 24))
+        if hasattr(self, "ui_zoom_label"):
+            self.ui_zoom_label.setFixedWidth(escala(44, zoom, 28))
+        if hasattr(self, "prog_bar"):
+            self.prog_bar.setFixedHeight(escala(14, zoom, 7))
+        if hasattr(self, "log_widget"):
+            self.log_widget.setFixedHeight(escala(LOG_HEIGHT_OPEN, zoom, 120))
+        if hasattr(self, "intro_table"):
+            self.intro_table.setFixedHeight(escala(200, zoom, 110))
+        if hasattr(self, "wm_image_preview"):
+            self.wm_image_preview.setFixedHeight(escala(86, zoom, 44))
+        if hasattr(self, "preview"):
+            self.preview.setMinimumSize(escala(520, zoom, 260), escala(300, zoom, 150))
+        if hasattr(self, "preview_group"):
+            base_height = PREVIEW_HEIGHT_LOG_OPEN if hasattr(self, "log_widget") and self.log_widget.isVisible() else PREVIEW_HEIGHT_NORMAL
+            self.set_preview_group_height(base_height)
+
+        if resize_window:
+            self.resize(escala(BASE_WINDOW_WIDTH, zoom, 760), escala(BASE_WINDOW_HEIGHT, zoom, 410))
+        self.updateGeometry()
+
     def set_preview_group_height(self, height: int):
-        width = int(height * PREVIEW_ASPECT_RATIO)
-        self.preview.setFixedSize(width, height)
-        self.video_widget.setFixedSize(width, height)
+        scaled_height = escala(height, self.ui_zoom, 135)
+        width = int(scaled_height * PREVIEW_ASPECT_RATIO)
+        self.preview.setFixedSize(width, scaled_height)
+        self.video_widget.setFixedSize(width, scaled_height)
         self.preview_group.setFixedWidth(width)
 
     # ---------- Preview ----------
@@ -1758,6 +1982,9 @@ class MainUI(QWidget):
                 "preview": {
                     "volume": self.preview_volume_slider.value() / 20.0,
                 },
+                "ui": {
+                    "zoom": self.ui_zoom_slider.value() / 100.0,
+                },
                 "fonte_texto": asdict(cfg.fonte_texto),
                 "titulos_musicas": cfg.track_titles,
                 "watermark": asdict(cfg.watermark),
@@ -1796,6 +2023,11 @@ class MainUI(QWidget):
 
             preview = data.get("preview", {})
             self.preview_volume_slider.setValue(int(float(preview.get("volume", 1.0)) * 20))
+
+            ui = data.get("ui", {})
+            if "zoom" in ui:
+                self._zoom_loaded = True
+                self.set_ui_zoom_percent(int(round(float(ui.get("zoom", 1.0)) * 100)), resize_window=True)
 
             self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
             self.refresh_track_titles_table(data.get("titulos_musicas", {}))
