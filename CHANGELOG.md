@@ -1,5 +1,9 @@
 # Histórico de Mudanças
 
+## 8.0.66 - 2026-05-10
+
+- Renomeada a subaba de configuração dos títulos das músicas para `Fonte`.
+
 ## 8.0.65 - 2026-05-10
 
 - Ajustados os sliders de tamanho da sombra para operar e indicar valores inteiros em pixels.

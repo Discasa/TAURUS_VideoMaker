@@ -1283,7 +1283,7 @@ class MainUI(QWidget):
         layout.setSpacing(8)
         self.music_tabs = QTabWidget()
         self.music_tabs.addTab(self.build_title_tracks_tab(), "Faixas")
-        self.music_tabs.addTab(self.build_title_font_tab(), "Títulos")
+        self.music_tabs.addTab(self.build_title_font_tab(), "Fonte")
         self.music_tabs.tabBar().setUsesScrollButtons(False)
         layout.addWidget(self.music_tabs)
         return tab
