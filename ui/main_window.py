@@ -9,6 +9,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from core.engine import (
+    APP_ICON,
     APP_VERSION,
     EXTENSOES_AUDIO,
     EXTENSOES_IMAGEM,
@@ -40,7 +41,7 @@ from core.engine import (
 )
 
 from PySide6.QtCore import QSize, Qt, QTimer, QUrl
-from PySide6.QtGui import QPixmap, QTextCursor
+from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut, QTextCursor
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
@@ -77,7 +78,6 @@ from .common import (
     PREVIEW_ASPECT_RATIO,
     PREVIEW_HEIGHT_LOG_OPEN,
     PREVIEW_HEIGHT_NORMAL,
-    RIGHT_FORM_WIDTH,
     STYLE_PRIME,
     UI_ZOOM_MAX,
     UI_ZOOM_MIN,
@@ -109,6 +109,8 @@ class MainUI(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle(f"TAURUS Video Maker {APP_VERSION}")
+        if APP_ICON.exists():
+            self.setWindowIcon(QIcon(str(APP_ICON)))
         self.ui_zoom = 1.0
         self._zoom_loaded = False
         self.resize(BASE_WINDOW_WIDTH, BASE_WINDOW_HEIGHT)
@@ -122,6 +124,9 @@ class MainUI(QWidget):
         self.preview_pixmap: QPixmap | None = None
         self.pre_render_path: Path | None = None
         self._config_loading = False
+        self._undo_restoring = False
+        self._undo_stack: list[dict] = []
+        self._last_undo_snapshot = ""
 
         self.autosave_timer = QTimer(self)
         self.autosave_timer.setSingleShot(True)
@@ -155,13 +160,16 @@ class MainUI(QWidget):
         if not self._zoom_loaded:
             self.set_ui_zoom_percent(int(round(self.zoom_inicial_para_tela() * 100)), resize_window=True)
         self.connect_auto_signals()
+        self.undo_shortcut = QShortcut(QKeySequence.StandardKey.Undo, self)
+        self.undo_shortcut.activated.connect(self.undo_last_change)
         self.music_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         self.bg_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         remove_spin_buttons(self)
         padronizar_altura_controles(self, self.ui_zoom)
+        self.record_undo_snapshot(force=True)
         self.update_preview()
 
-    # ---------- Construção visual ----------
+    # ---------- ConstruÃ§Ã£o visual ----------
 
     def build_music_tab(self) -> QWidget:
         tab = QWidget()
@@ -202,7 +210,7 @@ class MainUI(QWidget):
         self.font_titles_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.font_titles_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "Posição", self.font_titles_pos)
+        add_row(form, 0, "PosiÃ§Ã£o", self.font_titles_pos)
         add_row(form, 1, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
         add_row(form, 2, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
         add_row(form, 3, "Opacidade", self.font_titles_opc)
@@ -266,10 +274,10 @@ class MainUI(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
-        self.intro_enabled = ToggleSwitch("Usar intro no começo do vídeo")
+        self.intro_enabled = ToggleSwitch("Usar intro no comeÃ§o do vÃ­deo")
         layout.addWidget(self.intro_enabled)
         self.intro_table = QTableWidget(0, 3)
-        self.intro_table.setHorizontalHeaderLabels(["Início", "Duração", "Frase"])
+        self.intro_table.setHorizontalHeaderLabels(["InÃ­cio", "DuraÃ§Ã£o", "Frase"])
         self.intro_table.setShowGrid(True)
         self.intro_table.setCornerButtonEnabled(False)
         self.intro_table.setFrameShape(QFrame.NoFrame)
@@ -317,7 +325,7 @@ class MainUI(QWidget):
         self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.intro_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "Posição", self.intro_pos)
+        add_row(form, 0, "PosiÃ§Ã£o", self.intro_pos)
         add_row(form, 1, "Margens", margins_widget(self.intro_mx, self.intro_my))
         add_row(form, 2, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
         add_row(form, 3, "Peso", self.intro_font_weight)
@@ -343,10 +351,10 @@ class MainUI(QWidget):
         self.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
         set_input_width(self.intro_eff)
         self.intro_delay = QDoubleSpinBox(); self.intro_delay.setRange(0, 120); self.intro_delay.setSuffix(" s")
-        self.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar.")
-        self.intro_randomize = ToggleSwitch("Escolher frases aleatórias")
+        self.intro_delay.setToolTip("Define quantos segundos a mÃºsica principal espera antes de comeÃ§ar.")
+        self.intro_randomize = ToggleSwitch("Escolher frases aleatÃ³rias")
         self.intro_random_count = QSpinBox(); self.intro_random_count.setRange(1, 99); self.intro_random_count.setValue(3)
-        self.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação opcional")
+        self.intro_audio = PathPicker("file", "Ãudios (*.wav *.mp3);;Todos (*.*)", "Ãudio de digitaÃ§Ã£o opcional")
         self.intro_typing_volume = QDoubleSpinBox(); self.intro_typing_volume.setRange(0, 1); self.intro_typing_volume.setSingleStep(0.05); self.intro_typing_volume.setValue(0.30)
         self.intro_typing_cps = QDoubleSpinBox(); self.intro_typing_cps.setRange(1, 120); self.intro_typing_cps.setValue(18.0); self.intro_typing_cps.setSuffix(" car/s")
         self.intro_backspace_cps = QDoubleSpinBox(); self.intro_backspace_cps.setRange(1, 120); self.intro_backspace_cps.setValue(22.0); self.intro_backspace_cps.setSuffix(" car/s")
@@ -355,12 +363,12 @@ class MainUI(QWidget):
         self.intro_backspace_audio = ToggleSwitch("Som no backspace")
         self.intro_backspace_audio.setChecked(True)
         add_row(form, 0, "Efeito", self.intro_eff)
-        add_row(form, 1, "Música após", self.intro_delay)
+        add_row(form, 1, "MÃºsica apÃ³s", self.intro_delay)
         add_wide(form, 2, self.intro_randomize)
-        add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
+        add_row(form, 3, "Qtd. aleatÃ³ria", self.intro_random_count)
         add_row(form, 4, "Som teclado", self.intro_audio)
         add_row(form, 5, "Volume", self.intro_typing_volume)
-        add_row(form, 6, "Digitação", self.intro_typing_cps)
+        add_row(form, 6, "DigitaÃ§Ã£o", self.intro_typing_cps)
         add_row(form, 7, "Backspace", self.intro_backspace_cps)
         add_wide(form, 8, self.intro_show_cursor)
         add_wide(form, 9, self.intro_backspace_audio)
@@ -385,10 +393,10 @@ class MainUI(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         form = QGridLayout()
         setup_form(form)
-        self.wm_enabled = ToggleSwitch("Mostrar marca d'água")
+        self.wm_enabled = ToggleSwitch("Mostrar marca d'Ã¡gua")
         self.wm_enabled.setChecked(True)
         self.wm_mode = QComboBox(); self.wm_mode.addItems(["Texto", "Imagem"]); set_input_width(self.wm_mode)
-        self.wm_text = QLineEdit("⚓")
+        self.wm_text = QLineEdit("âš“")
         self.wm_image_preview = QLabel("Nenhuma imagem selecionada")
         self.wm_image_preview.setObjectName("ImagePreview")
         self.wm_image_preview.setAlignment(Qt.AlignCenter)
@@ -418,7 +426,7 @@ class MainUI(QWidget):
         self.wm_preview_label = add_row(form, 2, "Preview", self.wm_image_preview)
         add_row(form, 3, "Imagem", self.wm_img)
         add_row(form, 4, "Largura img.", self.wm_width)
-        add_row(form, 5, "Posição", self.wm_pos)
+        add_row(form, 5, "PosiÃ§Ã£o", self.wm_pos)
         add_row(form, 6, "Margens", margins_widget(self.wm_mx, self.wm_my))
         add_row(form, 7, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
         add_row(form, 8, "Opacidade", self.wm_opacity)
@@ -442,7 +450,7 @@ class MainUI(QWidget):
         layout.setSpacing(10)
 
         ambience, ambience_layout = section("Som ambiente opcional")
-        self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
+        self.bg_picker = PathPicker("file", "Ãudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruÃ­do etc.")
         self.bg_vol_slider = QSlider(Qt.Horizontal)
         self.bg_vol_slider.setRange(0, 20)
         self.bg_vol_slider.setValue(6)
@@ -474,11 +482,11 @@ class MainUI(QWidget):
         self.set_lufs = QDoubleSpinBox(); self.set_lufs.setRange(-40, 0); self.set_lufs.setValue(-14)
         self.set_peak = QDoubleSpinBox(); self.set_peak.setRange(-9, 0); self.set_peak.setValue(-1)
         add_wide(form, 0, self.set_fadein)
-        add_row(form, 1, "Duração in", self.set_fadein_s)
+        add_row(form, 1, "DuraÃ§Ã£o in", self.set_fadein_s)
         add_wide(form, 2, self.set_fadeout)
-        add_row(form, 3, "Duração out", self.set_fadeout_s)
+        add_row(form, 3, "DuraÃ§Ã£o out", self.set_fadeout_s)
         add_row(form, 4, "Crossfade", self.set_crossfade_s)
-        add_row(form, 5, "Silêncio", self.set_silence_s)
+        add_row(form, 5, "SilÃªncio", self.set_silence_s)
         add_wide(form, 6, self.set_norm)
         add_row(form, 7, "Target LUFS", self.set_lufs)
         add_row(form, 8, "True peak", self.set_peak)
@@ -621,7 +629,7 @@ class MainUI(QWidget):
         if not source or not source.exists():
             self.preview_source = None
             self.preview_pixmap = None
-            self.preview_status.setText("Aguardando mídia visual")
+            self.preview_status.setText("Aguardando mÃ­dia visual")
             return
         if self.preview_source == source and self.preview_pixmap:
             return
@@ -634,7 +642,7 @@ class MainUI(QWidget):
             self.preview_status.setText("Imagem base")
             return
         if suffix not in EXTENSOES_VIDEO or not FFMPEG.exists():
-            self.preview_status.setText("Preview indisponível")
+            self.preview_status.setText("Preview indisponÃ­vel")
             return
         try:
             preview_dir = PREVIEW_CACHE_DIR
@@ -644,15 +652,15 @@ class MainUI(QWidget):
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, **criar_kwargs_subprocess_controlado())
             pixmap = QPixmap(str(target))
             self.preview_pixmap = pixmap if not pixmap.isNull() else None
-            self.preview_status.setText("Primeiro frame do vídeo")
-        except Exception:
+            self.preview_status.setText("Primeiro frame do vÃ­deo")
+        except (OSError, subprocess.SubprocessError):
             self.preview_pixmap = None
-            self.preview_status.setText("Não foi possível gerar preview")
+            self.preview_status.setText("NÃ£o foi possÃ­vel gerar preview")
 
     def update_preview(self):
         try:
             config = self.get_config_obj(validar=False)
-        except Exception:
+        except (TypeError, ValueError):
             config = None
         self.extract_preview_frame(self.video_picker.path())
         if hasattr(self, "video_widget") and self.video_widget.isVisible():
@@ -670,7 +678,7 @@ class MainUI(QWidget):
         self.video_player.setSource(QUrl())
         self.video_widget.hide()
         self.preview.show()
-        self.btn_pre_render.setText("Pre render")
+        self.btn_pre_render.setText("Preview")
         self.update_preview()
 
     def play_preview_video(self, video_path: Path):
@@ -699,7 +707,7 @@ class MainUI(QWidget):
             self.video_player.setPosition(0)
             self.video_player.play()
 
-    # ---------- Configuração ----------
+    # ---------- ConfiguraÃ§Ã£o ----------
 
     def get_intro_phrases(self) -> list[IntroFraseConfig]:
         phrases: list[IntroFraseConfig] = []
@@ -732,8 +740,8 @@ class MainUI(QWidget):
             try:
                 bg_resolved = bg_path.resolve()
                 files = [path for path in files if path.resolve() != bg_resolved]
-            except OSError:
-                pass
+            except OSError as exc:
+                print(f"Erro ao resolver Ã¡udio de fundo: {exc}")
         return sorted(files, key=natural_key)
 
     def get_track_titles(self) -> dict[str, str]:
@@ -770,9 +778,9 @@ class MainUI(QWidget):
         music = self.music_picker.path()
         if validar:
             if video is None:
-                raise ErroRender("Escolha o vídeo, GIF ou imagem base.")
+                raise ErroRender("Escolha o vÃ­deo, GIF ou imagem base.")
             if music is None:
-                raise ErroRender("Escolha a pasta onde estão as músicas.")
+                raise ErroRender("Escolha a pasta onde estÃ£o as mÃºsicas.")
 
         title_font = FonteTextoConfig(
             font_family=self.font_titles.currentText(),
@@ -870,86 +878,132 @@ class MainUI(QWidget):
             intro=intro,
         )
 
+    def current_config_data(self) -> dict:
+        cfg = self.get_config_obj(validar=False)
+        return {
+            "app_version": APP_VERSION,
+            "paths": {
+                "video_path": caminho_ou_vazio(self.video_picker.path()),
+                "music_folder": caminho_ou_vazio(self.music_picker.path()),
+                "background_audio_path": caminho_ou_vazio(self.bg_picker.path()),
+                "output_folder": caminho_ou_vazio(self.out_picker.path()),
+            },
+            "render": {
+                "use_gpu": cfg.use_gpu,
+                "use_fade_in": cfg.use_fade_in,
+                "use_fade_out": cfg.use_fade_out,
+                "fade_in_seconds": cfg.fade_in_seconds,
+                "fade_out_seconds": cfg.fade_out_seconds,
+                "background_volume": cfg.background_volume,
+                "crossfade_seconds": cfg.crossfade_seconds,
+                "silence_seconds": cfg.silence_seconds,
+            },
+            "normalizacao": asdict(cfg.normalizacao),
+            "preview": {
+                "volume": self.preview_volume_slider.value() / 20.0,
+            },
+            "ui": {
+                "zoom": self.ui_zoom_slider.value() / 100.0,
+            },
+            "fonte_texto": asdict(cfg.fonte_texto),
+            "titulos_musicas": cfg.track_titles,
+            "ordem_musicas": cfg.track_order,
+            "watermark": asdict(cfg.watermark),
+            "intro": intro_config_to_dict(cfg.intro),
+        }
+
     def save_config(self):
         try:
-            cfg = self.get_config_obj(validar=False)
-            salvar_config({
-                "app_version": APP_VERSION,
-                "paths": {
-                    "video_path": caminho_ou_vazio(self.video_picker.path()),
-                    "music_folder": caminho_ou_vazio(self.music_picker.path()),
-                    "background_audio_path": caminho_ou_vazio(self.bg_picker.path()),
-                    "output_folder": caminho_ou_vazio(self.out_picker.path()),
-                },
-                "render": {
-                    "use_gpu": cfg.use_gpu,
-                    "use_fade_in": cfg.use_fade_in,
-                    "use_fade_out": cfg.use_fade_out,
-                    "fade_in_seconds": cfg.fade_in_seconds,
-                    "fade_out_seconds": cfg.fade_out_seconds,
-                    "background_volume": cfg.background_volume,
-                    "crossfade_seconds": cfg.crossfade_seconds,
-                    "silence_seconds": cfg.silence_seconds,
-                },
-                "normalizacao": asdict(cfg.normalizacao),
-                "preview": {
-                    "volume": self.preview_volume_slider.value() / 20.0,
-                },
-                "ui": {
-                    "zoom": self.ui_zoom_slider.value() / 100.0,
-                },
-                "fonte_texto": asdict(cfg.fonte_texto),
-                "titulos_musicas": cfg.track_titles,
-                "ordem_musicas": cfg.track_order,
-                "watermark": asdict(cfg.watermark),
-                "intro": intro_config_to_dict(cfg.intro),
-            })
-        except Exception as exc:
+            salvar_config(self.current_config_data())
+        except (OSError, TypeError, ValueError) as exc:
             print(f"Erro ao salvar config: {exc}")
 
     def load_config(self):
-        self._config_loading = True
         data = carregar_config()
-        if data:
-            paths = data.get("paths", {})
-            self.video_picker.set_path(paths.get("video_path"))
-            self.music_picker.set_path(paths.get("music_folder"))
-            self.bg_picker.set_path(paths.get("background_audio_path"))
-            self.out_picker.set_path(paths.get("output_folder"))
+        self.apply_config_data(data)
 
-            render = data.get("render", {})
-            self.set_gpu.setChecked(bool(render.get("use_gpu", True)))
-            self.set_fadein.setChecked(bool(render.get("use_fade_in", True)))
-            self.set_fadeout.setChecked(bool(render.get("use_fade_out", True)))
-            self.set_fadein_s.setValue(float(render.get("fade_in_seconds", 3.0)))
-            self.set_fadeout_s.setValue(float(render.get("fade_out_seconds", 3.0)))
-            self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 20))
-            self.set_crossfade_s.setValue(float(render.get("crossfade_seconds", 0.0)))
-            self.set_silence_s.setValue(float(render.get("silence_seconds", 0.0)))
+    def apply_config_data(self, data: dict):
+        self._config_loading = True
+        try:
+            if data:
+                paths = data.get("paths", {})
+                self.video_picker.set_path(paths.get("video_path"))
+                self.music_picker.set_path(paths.get("music_folder"))
+                self.bg_picker.set_path(paths.get("background_audio_path"))
+                self.out_picker.set_path(paths.get("output_folder"))
 
-            norm = data.get("normalizacao", {})
-            if self.normalizacao_config_antiga_zerada(str(data.get("app_version", "")), norm):
-                self.set_norm.setChecked(True)
-                self.set_lufs.setValue(-14.0)
-                self.set_peak.setValue(-1.0)
-            else:
-                self.set_norm.setChecked(bool(norm.get("enabled", True)))
-                self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
-                self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
+                render = data.get("render", {})
+                self.set_gpu.setChecked(bool(render.get("use_gpu", True)))
+                self.set_fadein.setChecked(bool(render.get("use_fade_in", True)))
+                self.set_fadeout.setChecked(bool(render.get("use_fade_out", True)))
+                self.set_fadein_s.setValue(float(render.get("fade_in_seconds", 3.0)))
+                self.set_fadeout_s.setValue(float(render.get("fade_out_seconds", 3.0)))
+                self.bg_vol_slider.setValue(int(float(render.get("background_volume", 0.3)) * 20))
+                self.set_crossfade_s.setValue(float(render.get("crossfade_seconds", 0.0)))
+                self.set_silence_s.setValue(float(render.get("silence_seconds", 0.0)))
 
-            preview = data.get("preview", {})
-            self.preview_volume_slider.setValue(int(float(preview.get("volume", 1.0)) * 20))
+                norm = data.get("normalizacao", {})
+                if self.normalizacao_config_antiga_zerada(str(data.get("app_version", "")), norm):
+                    self.set_norm.setChecked(True)
+                    self.set_lufs.setValue(-14.0)
+                    self.set_peak.setValue(-1.0)
+                else:
+                    self.set_norm.setChecked(bool(norm.get("enabled", True)))
+                    self.set_lufs.setValue(float(norm.get("target_lufs", -14.0)))
+                    self.set_peak.setValue(float(norm.get("true_peak", -1.0)))
 
-            ui = data.get("ui", {})
-            if "zoom" in ui:
-                self._zoom_loaded = True
-                self.set_ui_zoom_percent(int(round(float(ui.get("zoom", 1.0)) * 100)), resize_window=True)
+                preview = data.get("preview", {})
+                self.preview_volume_slider.setValue(int(float(preview.get("volume", 1.0)) * 20))
 
-            self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
-            self.refresh_track_titles_table(data.get("titulos_musicas", {}), data.get("ordem_musicas", []))
-            self.apply_watermark_config(WatermarkConfig(**{k: v for k, v in data.get("watermark", {}).items() if k in WatermarkConfig.__dataclass_fields__}))
-            self.apply_intro_config(intro_config_from_dict(data.get("intro", {})))
-        self._config_loading = False
+                ui = data.get("ui", {})
+                if "zoom" in ui:
+                    self._zoom_loaded = True
+                    self.set_ui_zoom_percent(int(round(float(ui.get("zoom", 1.0)) * 100)), resize_window=True)
+
+                self.apply_title_config(FonteTextoConfig(**{k: v for k, v in data.get("fonte_texto", {}).items() if k in FonteTextoConfig.__dataclass_fields__}))
+                self.refresh_track_titles_table(data.get("titulos_musicas", {}), data.get("ordem_musicas", []))
+                self.apply_watermark_config(WatermarkConfig(**{k: v for k, v in data.get("watermark", {}).items() if k in WatermarkConfig.__dataclass_fields__}))
+                self.apply_intro_config(intro_config_from_dict(data.get("intro", {})))
+        finally:
+            self._config_loading = False
+
+    def record_undo_snapshot(self, force: bool = False):
+        if self._config_loading or self._undo_restoring:
+            return
+        try:
+            data = json.loads(json.dumps(self.current_config_data(), ensure_ascii=False, default=str))
+            key = json.dumps(data, sort_keys=True, ensure_ascii=False)
+        except (TypeError, ValueError) as exc:
+            print(f"Erro ao registrar undo: {exc}")
+            return
+
+        if not force and key == self._last_undo_snapshot:
+            return
+
+        self._undo_stack.append({"key": key, "data": data})
+        if len(self._undo_stack) > 80:
+            self._undo_stack = self._undo_stack[-80:]
+        self._last_undo_snapshot = key
+
+    def undo_last_change(self):
+        if self.worker and self.worker.isRunning():
+            return
+
+        self.record_undo_snapshot()
+        if len(self._undo_stack) < 2:
+            return
+
+        self._undo_stack.pop()
+        snapshot = self._undo_stack[-1]
+        self._undo_restoring = True
+        try:
+            self.apply_config_data(snapshot["data"])
+            self._last_undo_snapshot = snapshot["key"]
+            self.save_config()
+            self.update_preview()
+            self.lbl_status.setText("AlteraÃ§Ã£o desfeita")
+        finally:
+            self._undo_restoring = False
 
     def apply_title_config(self, cfg: FonteTextoConfig):
         self.set_combo_text(self.font_titles, cfg.font_family)
@@ -1141,10 +1195,10 @@ class MainUI(QWidget):
         try:
             data = json.loads(Path(path).read_text(encoding="utf-8"))
             self.apply_intro_config(intro_config_from_dict(data))
-        except Exception as exc:
-            QMessageBox.warning(self, "Preset da intro", f"Não foi possível carregar o preset:\n{exc}")
+        except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            QMessageBox.warning(self, "Preset da intro", f"NÃ£o foi possÃ­vel carregar o preset:\n{exc}")
 
-    # ---------- Eventos e execução ----------
+    # ---------- Eventos e execuÃ§Ã£o ----------
 
     def connect_auto_signals(self):
         for child in self.findChildren(QWidget):
@@ -1167,6 +1221,7 @@ class MainUI(QWidget):
     def trigger_autosave(self, *args):
         if self._config_loading:
             return
+        self.record_undo_snapshot()
         self.autosave_timer.start()
         self.preview_timer.start()
 
@@ -1203,7 +1258,7 @@ class MainUI(QWidget):
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
             self.wm_image_preview.setPixmap(QPixmap())
-            self.wm_image_preview.setText("Imagem inválida")
+            self.wm_image_preview.setText("Imagem invÃ¡lida")
             return
         self.wm_image_preview.setText("")
         size = self.wm_image_preview.size()
@@ -1232,19 +1287,19 @@ class MainUI(QWidget):
         try:
             config = self.get_config_obj(validar=True)
             self.save_config()
-        except Exception as exc:
-            QMessageBox.warning(self, "Configuração incompleta", str(exc))
+        except (ErroRender, OSError, TypeError, ValueError) as exc:
+            QMessageBox.warning(self, "ConfiguraÃ§Ã£o incompleta", str(exc))
             return
         self.log_widget.clear()
         self.prog_bar.setValue(0)
         self.ultimo_video = None
         self.render_mode = "pre_render" if pre_render else "final"
-        self.lbl_status.setText("Iniciando pre render" if pre_render else "Iniciando renderização final")
+        self.lbl_status.setText("Iniciando preview" if pre_render else "Iniciando exportaÃ§Ã£o")
         if pre_render:
             limpar_pre_render()
             PRE_RENDER_DIR.mkdir(parents=True, exist_ok=True)
             config.output_folder = PRE_RENDER_DIR
-            self.pre_render_path = PRE_RENDER_DIR / "pre_render.mp4"
+            self.pre_render_path = PRE_RENDER_DIR / "preview.mp4"
             config.output_path_override = self.pre_render_path
             self.show_static_preview()
             self.btn_pre_render.setText("Parar")
@@ -1252,7 +1307,7 @@ class MainUI(QWidget):
             self.preview_play_timer.start()
         else:
             self.pre_render_path = None
-            self.btn_start.setText("Pausar")
+            self.btn_start.setText("Cancelar")
             self.btn_start.setEnabled(True)
             self.btn_pre_render.setEnabled(False)
         self.btn_cancel.setEnabled(True)
@@ -1263,12 +1318,10 @@ class MainUI(QWidget):
         self.worker.terminado.connect(self.finalizar_render)
         self.worker.start()
 
-    def iniciar_ou_pausar(self):
+    def export_toggle(self):
         if self.worker and self.worker.isRunning():
-            paused = self.worker.alternar_pausa()
-            self.btn_start.setText("Retomar" if paused else "Pausar")
-            self.lbl_status.setText("Pausado" if paused else "Retomando")
-            self.log_msg("\nProcesso pausado.\n" if paused else "\nProcesso retomado.\n")
+            if self.render_mode == "final":
+                self.cancelar_render()
         else:
             self.start_render(pre_render=False)
 
@@ -1283,7 +1336,7 @@ class MainUI(QWidget):
             self.preview_play_timer.stop()
             self.pre_render_path = None
             limpar_pre_render()
-            self.lbl_status.setText("Pre render parado")
+            self.lbl_status.setText("Preview parado")
             return
         self.start_render(pre_render=True)
 
@@ -1293,6 +1346,7 @@ class MainUI(QWidget):
         self.lbl_status.setText("Cancelando")
         self.btn_cancel.setEnabled(False)
         self.btn_start.setEnabled(False)
+        self.btn_pre_render.setEnabled(False)
         self.log_msg("\nCancelamento solicitado. Encerrando FFmpeg e removendo arquivo incompleto...\n")
         self.worker.cancelar()
 
@@ -1300,7 +1354,7 @@ class MainUI(QWidget):
         self.prog_bar.setValue(max(0, min(100, int(value))))
 
     def finalizar_render(self, sucesso: bool, mensagem: str, caminho_saida: str):
-        self.btn_start.setText("Renderizar")
+        self.btn_start.setText("Exportar")
         self.btn_start.setEnabled(True)
         self.btn_pre_render.setEnabled(True)
         self.btn_cancel.setEnabled(False)
@@ -1329,8 +1383,8 @@ class MainUI(QWidget):
                 log_path = LOG_DIR / "erro_ffmpeg_log.txt"
                 try:
                     log_path.write_text(mensagem, encoding="utf-8", errors="ignore")
-                except Exception:
-                    pass
+                except OSError as exc:
+                    print(f"Erro ao salvar log de render: {exc}")
                 msg = QMessageBox(self)
                 msg.setIcon(QMessageBox.Critical)
                 msg.setWindowTitle("Erro")
@@ -1355,15 +1409,15 @@ class MainUI(QWidget):
                 subprocess.Popen(["open", str(folder)])
             else:
                 subprocess.Popen(["xdg-open", str(folder)])
-        except Exception as exc:
-            QMessageBox.information(self, "Pasta de saída", f"Não foi possível abrir:\n{folder}\n\n{exc}")
+        except (OSError, subprocess.SubprocessError) as exc:
+            QMessageBox.information(self, "Pasta de saÃ­da", f"NÃ£o foi possÃ­vel abrir:\n{folder}\n\n{exc}")
 
     def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
             answer = QMessageBox.question(
                 self,
-                "Cancelar renderização?",
-                "Existe uma renderização em andamento. Fechar a janela vai cancelar o processo e apagar arquivos incompletos. Deseja fechar?",
+                "Cancelar renderizaÃ§Ã£o?",
+                "Existe uma renderizaÃ§Ã£o em andamento. Fechar a janela vai cancelar o processo e apagar arquivos incompletos. Deseja fechar?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
@@ -1380,6 +1434,8 @@ class MainUI(QWidget):
 
 def iniciar_ui():
     app = QApplication(sys.argv)
+    if APP_ICON.exists():
+        app.setWindowIcon(QIcon(str(APP_ICON)))
     app.setStyle("Fusion")
     window = MainUI()
     window.show()

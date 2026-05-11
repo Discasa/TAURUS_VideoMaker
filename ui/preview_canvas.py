@@ -6,7 +6,7 @@ from pathlib import Path
 from core.engine import RenderConfig, limpar_hex
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
-from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QPainter, QPen, QPixmap
+from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 class PreviewCanvas(QWidget):

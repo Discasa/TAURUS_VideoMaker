@@ -1,5 +1,16 @@
 # Histórico de Mudanças
 
+## 8.0.74 - 2026-05-10
+
+- Renomeado o fluxo visual de `Pre render` para `Preview/Parar`.
+- Renomeado o botão principal para `Exportar/Cancelar`.
+- O preview agora pula processamento de áudio e gera apenas a pré-visualização visual em 960x540.
+- Refatorado o backend em módulos menores para constantes, modelos, persistência, perfis, áudio, filtros de vídeo, execução FFmpeg e limpeza de cache.
+- Adicionado teste real de NVENC antes de usar GPU.
+- Removidos imports mortos e substituídos silêncios de erro por tratamento/log mais explícito.
+- Adicionado suporte a `Ctrl+Z` para desfazer alterações de configuração na interface.
+- Adicionado ícone do aplicativo a partir dos assets em `img/`.
+
 ## 8.0.73 - 2026-05-10
 
 - Corrigida a intro aleatória para manter texto e som de digitação sincronizados durante o mesmo render.
