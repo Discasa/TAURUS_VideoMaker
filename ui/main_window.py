@@ -171,7 +171,7 @@ class MainUI(QWidget):
         self.record_undo_snapshot(force=True)
         self.update_preview()
 
-    # ---------- ConstruÃ§Ã£o visual ----------
+    # ---------- Construção visual ----------
 
     def build_music_tab(self) -> QWidget:
         tab = QWidget()
@@ -212,7 +212,7 @@ class MainUI(QWidget):
         self.font_titles_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.font_titles_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "PosiÃ§Ã£o", self.font_titles_pos)
+        add_row(form, 0, "Posição", self.font_titles_pos)
         add_row(form, 1, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
         add_row(form, 2, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
         add_row(form, 3, "Opacidade", self.font_titles_opc)
@@ -276,10 +276,10 @@ class MainUI(QWidget):
         tab = QWidget()
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)
-        self.intro_enabled = ToggleSwitch("Usar intro no comeÃ§o do vÃ­deo")
+        self.intro_enabled = ToggleSwitch("Usar intro no começo do vídeo")
         layout.addWidget(self.intro_enabled)
         self.intro_table = QTableWidget(0, 3)
-        self.intro_table.setHorizontalHeaderLabels(["InÃ­cio", "DuraÃ§Ã£o", "Frase"])
+        self.intro_table.setHorizontalHeaderLabels(["Início", "Duração", "Frase"])
         self.intro_table.setShowGrid(True)
         self.intro_table.setCornerButtonEnabled(False)
         self.intro_table.setFrameShape(QFrame.NoFrame)
@@ -327,7 +327,7 @@ class MainUI(QWidget):
         self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.intro_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "PosiÃ§Ã£o", self.intro_pos)
+        add_row(form, 0, "Posição", self.intro_pos)
         add_row(form, 1, "Margens", margins_widget(self.intro_mx, self.intro_my))
         add_row(form, 2, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
         add_row(form, 3, "Peso", self.intro_font_weight)
@@ -353,10 +353,10 @@ class MainUI(QWidget):
         self.intro_eff.addItems(["typewriter", "fade", "direct", "typewriter_fade"])
         set_input_width(self.intro_eff)
         self.intro_delay = QDoubleSpinBox(); self.intro_delay.setRange(0, 120); self.intro_delay.setSuffix(" s")
-        self.intro_delay.setToolTip("Define quantos segundos a mÃºsica principal espera antes de comeÃ§ar.")
-        self.intro_randomize = ToggleSwitch("Escolher frases aleatÃ³rias")
+        self.intro_delay.setToolTip("Define quantos segundos a música principal espera antes de começar.")
+        self.intro_randomize = ToggleSwitch("Escolher frases aleatórias")
         self.intro_random_count = QSpinBox(); self.intro_random_count.setRange(1, 99); self.intro_random_count.setValue(3)
-        self.intro_audio = PathPicker("file", "Ãudios (*.wav *.mp3);;Todos (*.*)", "Ãudio de digitaÃ§Ã£o opcional")
+        self.intro_audio = PathPicker("file", "Áudios (*.wav *.mp3);;Todos (*.*)", "Áudio de digitação opcional")
         self.intro_typing_volume = QDoubleSpinBox(); self.intro_typing_volume.setRange(0, 1); self.intro_typing_volume.setSingleStep(0.05); self.intro_typing_volume.setValue(0.30)
         self.intro_typing_cps = QDoubleSpinBox(); self.intro_typing_cps.setRange(1, 120); self.intro_typing_cps.setValue(18.0); self.intro_typing_cps.setSuffix(" car/s")
         self.intro_backspace_cps = QDoubleSpinBox(); self.intro_backspace_cps.setRange(1, 120); self.intro_backspace_cps.setValue(22.0); self.intro_backspace_cps.setSuffix(" car/s")
@@ -365,12 +365,12 @@ class MainUI(QWidget):
         self.intro_backspace_audio = ToggleSwitch("Som no backspace")
         self.intro_backspace_audio.setChecked(True)
         add_row(form, 0, "Efeito", self.intro_eff)
-        add_row(form, 1, "MÃºsica apÃ³s", self.intro_delay)
+        add_row(form, 1, "Música após", self.intro_delay)
         add_wide(form, 2, self.intro_randomize)
-        add_row(form, 3, "Qtd. aleatÃ³ria", self.intro_random_count)
+        add_row(form, 3, "Qtd. aleatória", self.intro_random_count)
         add_row(form, 4, "Som teclado", self.intro_audio)
         add_row(form, 5, "Volume", self.intro_typing_volume)
-        add_row(form, 6, "DigitaÃ§Ã£o", self.intro_typing_cps)
+        add_row(form, 6, "Digitação", self.intro_typing_cps)
         add_row(form, 7, "Backspace", self.intro_backspace_cps)
         add_wide(form, 8, self.intro_show_cursor)
         add_wide(form, 9, self.intro_backspace_audio)
@@ -395,10 +395,10 @@ class MainUI(QWidget):
         layout.setContentsMargins(12, 12, 12, 12)
         form = QGridLayout()
         setup_form(form)
-        self.wm_enabled = ToggleSwitch("Mostrar marca d'Ã¡gua")
+        self.wm_enabled = ToggleSwitch("Mostrar marca d'água")
         self.wm_enabled.setChecked(True)
         self.wm_mode = QComboBox(); self.wm_mode.addItems(["Texto", "Imagem"]); set_input_width(self.wm_mode)
-        self.wm_text = QLineEdit("âš“")
+        self.wm_text = QLineEdit("⚓")
         self.wm_image_preview = QLabel("Nenhuma imagem selecionada")
         self.wm_image_preview.setObjectName("ImagePreview")
         self.wm_image_preview.setAlignment(Qt.AlignCenter)
@@ -428,7 +428,7 @@ class MainUI(QWidget):
         self.wm_preview_label = add_row(form, 2, "Preview", self.wm_image_preview)
         add_row(form, 3, "Imagem", self.wm_img)
         add_row(form, 4, "Largura img.", self.wm_width)
-        add_row(form, 5, "PosiÃ§Ã£o", self.wm_pos)
+        add_row(form, 5, "Posição", self.wm_pos)
         add_row(form, 6, "Margens", margins_widget(self.wm_mx, self.wm_my))
         add_row(form, 7, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
         add_row(form, 8, "Opacidade", self.wm_opacity)
@@ -452,7 +452,7 @@ class MainUI(QWidget):
         layout.setSpacing(10)
 
         ambience, ambience_layout = section("Som ambiente opcional")
-        self.bg_picker = PathPicker("file", "Ãudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruÃ­do etc.")
+        self.bg_picker = PathPicker("file", "Áudios (*.mp3 *.wav *.m4a *.aac *.flac *.ogg *.opus *.wma);;Todos (*.*)", "Chuva, vinil, ruído etc.")
         self.bg_vol_slider = QSlider(Qt.Horizontal)
         self.bg_vol_slider.setRange(0, 20)
         self.bg_vol_slider.setValue(6)
@@ -484,11 +484,11 @@ class MainUI(QWidget):
         self.set_lufs = QDoubleSpinBox(); self.set_lufs.setRange(-40, 0); self.set_lufs.setValue(-14)
         self.set_peak = QDoubleSpinBox(); self.set_peak.setRange(-9, 0); self.set_peak.setValue(-1)
         add_wide(form, 0, self.set_fadein)
-        add_row(form, 1, "DuraÃ§Ã£o in", self.set_fadein_s)
+        add_row(form, 1, "Duração in", self.set_fadein_s)
         add_wide(form, 2, self.set_fadeout)
-        add_row(form, 3, "DuraÃ§Ã£o out", self.set_fadeout_s)
+        add_row(form, 3, "Duração out", self.set_fadeout_s)
         add_row(form, 4, "Crossfade", self.set_crossfade_s)
-        add_row(form, 5, "SilÃªncio", self.set_silence_s)
+        add_row(form, 5, "Silêncio", self.set_silence_s)
         add_wide(form, 6, self.set_norm)
         add_row(form, 7, "Target LUFS", self.set_lufs)
         add_row(form, 8, "True peak", self.set_peak)
@@ -631,7 +631,7 @@ class MainUI(QWidget):
         if not source or not source.exists():
             self.preview_source = None
             self.preview_pixmap = None
-            self.preview_status.setText("Aguardando mÃ­dia visual")
+            self.preview_status.setText("Aguardando mídia visual")
             return
         if self.preview_source == source and self.preview_pixmap:
             return
@@ -644,7 +644,7 @@ class MainUI(QWidget):
             self.preview_status.setText("Imagem base")
             return
         if suffix not in EXTENSOES_VIDEO or not FFMPEG.exists():
-            self.preview_status.setText("Preview indisponÃ­vel")
+            self.preview_status.setText("Preview indisponível")
             return
         try:
             preview_dir = PREVIEW_CACHE_DIR
@@ -654,10 +654,10 @@ class MainUI(QWidget):
             subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=20, **criar_kwargs_subprocess_controlado())
             pixmap = QPixmap(str(target))
             self.preview_pixmap = pixmap if not pixmap.isNull() else None
-            self.preview_status.setText("Primeiro frame do vÃ­deo")
+            self.preview_status.setText("Primeiro frame do vídeo")
         except (OSError, subprocess.SubprocessError):
             self.preview_pixmap = None
-            self.preview_status.setText("NÃ£o foi possÃ­vel gerar preview")
+            self.preview_status.setText("Não foi possível gerar preview")
 
     def update_preview(self):
         try:
@@ -709,7 +709,7 @@ class MainUI(QWidget):
             self.video_player.setPosition(0)
             self.video_player.play()
 
-    # ---------- ConfiguraÃ§Ã£o ----------
+    # ---------- Configuração ----------
 
     def get_intro_phrases(self) -> list[IntroFraseConfig]:
         phrases: list[IntroFraseConfig] = []
@@ -743,7 +743,7 @@ class MainUI(QWidget):
                 bg_resolved = bg_path.resolve()
                 files = [path for path in files if path.resolve() != bg_resolved]
             except OSError as exc:
-                print(f"Erro ao resolver Ã¡udio de fundo: {exc}")
+                print(f"Erro ao resolver áudio de fundo: {exc}")
         return sorted(files, key=natural_key)
 
     def get_track_titles(self) -> dict[str, str]:
@@ -780,9 +780,9 @@ class MainUI(QWidget):
         music = self.music_picker.path()
         if validar:
             if video is None:
-                raise ErroRender("Escolha o vÃ­deo, GIF ou imagem base.")
+                raise ErroRender("Escolha o vídeo, GIF ou imagem base.")
             if music is None:
-                raise ErroRender("Escolha a pasta onde estÃ£o as mÃºsicas.")
+                raise ErroRender("Escolha a pasta onde estão as músicas.")
 
         title_font = FonteTextoConfig(
             font_family=self.font_titles.currentText(),
@@ -1003,7 +1003,7 @@ class MainUI(QWidget):
             self._last_undo_snapshot = snapshot["key"]
             self.save_config()
             self.update_preview()
-            self.lbl_status.setText("AlteraÃ§Ã£o desfeita")
+            self.lbl_status.setText("Alteração desfeita")
         finally:
             self._undo_restoring = False
 
@@ -1198,9 +1198,9 @@ class MainUI(QWidget):
             data = json.loads(Path(path).read_text(encoding="utf-8"))
             self.apply_intro_config(intro_config_from_dict(data))
         except (OSError, json.JSONDecodeError, TypeError, ValueError) as exc:
-            QMessageBox.warning(self, "Preset da intro", f"NÃ£o foi possÃ­vel carregar o preset:\n{exc}")
+            QMessageBox.warning(self, "Preset da intro", f"Não foi possível carregar o preset:\n{exc}")
 
-    # ---------- Eventos e execuÃ§Ã£o ----------
+    # ---------- Eventos e execução ----------
 
     def connect_auto_signals(self):
         for child in self.findChildren(QWidget):
@@ -1260,7 +1260,7 @@ class MainUI(QWidget):
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
             self.wm_image_preview.setPixmap(QPixmap())
-            self.wm_image_preview.setText("Imagem invÃ¡lida")
+            self.wm_image_preview.setText("Imagem inválida")
             return
         self.wm_image_preview.setText("")
         size = self.wm_image_preview.size()
@@ -1290,13 +1290,13 @@ class MainUI(QWidget):
             config = self.get_config_obj(validar=True)
             self.save_config()
         except (ErroRender, OSError, TypeError, ValueError) as exc:
-            QMessageBox.warning(self, "ConfiguraÃ§Ã£o incompleta", str(exc))
+            QMessageBox.warning(self, "Configuração incompleta", str(exc))
             return
         self.log_widget.clear()
         self.prog_bar.setValue(0)
         self.ultimo_video = None
         self.render_mode = "pre_render" if pre_render else "final"
-        self.lbl_status.setText("Iniciando preview" if pre_render else "Iniciando exportaÃ§Ã£o")
+        self.lbl_status.setText("Iniciando preview" if pre_render else "Iniciando exportação")
         if pre_render:
             limpar_pre_render()
             PRE_RENDER_DIR.mkdir(parents=True, exist_ok=True)
@@ -1412,14 +1412,14 @@ class MainUI(QWidget):
             else:
                 subprocess.Popen(["xdg-open", str(folder)])
         except (OSError, subprocess.SubprocessError) as exc:
-            QMessageBox.information(self, "Pasta de saÃ­da", f"NÃ£o foi possÃ­vel abrir:\n{folder}\n\n{exc}")
+            QMessageBox.information(self, "Pasta de saída", f"Não foi possível abrir:\n{folder}\n\n{exc}")
 
     def closeEvent(self, event):
         if self.worker and self.worker.isRunning():
             answer = QMessageBox.question(
                 self,
-                "Cancelar renderizaÃ§Ã£o?",
-                "Existe uma renderizaÃ§Ã£o em andamento. Fechar a janela vai cancelar o processo e apagar arquivos incompletos. Deseja fechar?",
+                "Cancelar renderização?",
+                "Existe uma renderização em andamento. Fechar a janela vai cancelar o processo e apagar arquivos incompletos. Deseja fechar?",
                 QMessageBox.Yes | QMessageBox.No,
                 QMessageBox.No,
             )
