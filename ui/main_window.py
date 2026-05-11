@@ -123,7 +123,8 @@ class MainUI(QWidget):
         self.preview_source: Path | None = None
         self.preview_pixmap: QPixmap | None = None
         self.pre_render_path: Path | None = None
-        self._config_loading = False
+        self._ui_ready = False
+        self._config_loading = True
         self._undo_restoring = False
         self._undo_stack: list[dict] = []
         self._last_undo_snapshot = ""
@@ -166,6 +167,7 @@ class MainUI(QWidget):
         self.bg_picker.line.textChanged.connect(lambda *_: self.refresh_track_titles_table())
         remove_spin_buttons(self)
         padronizar_altura_controles(self, self.ui_zoom)
+        self._ui_ready = True
         self.record_undo_snapshot(force=True)
         self.update_preview()
 
@@ -968,7 +970,7 @@ class MainUI(QWidget):
             self._config_loading = False
 
     def record_undo_snapshot(self, force: bool = False):
-        if self._config_loading or self._undo_restoring:
+        if not self._ui_ready or self._config_loading or self._undo_restoring:
             return
         try:
             data = json.loads(json.dumps(self.current_config_data(), ensure_ascii=False, default=str))
@@ -1219,7 +1221,7 @@ class MainUI(QWidget):
         self.track_titles_table.itemSelectionChanged.connect(self.update_preview)
 
     def trigger_autosave(self, *args):
-        if self._config_loading:
+        if not self._ui_ready or self._config_loading:
             return
         self.record_undo_snapshot()
         self.autosave_timer.start()
