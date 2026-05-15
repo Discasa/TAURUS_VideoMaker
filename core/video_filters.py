@@ -12,7 +12,6 @@ from .text_utils import (
     cor_drawtext,
     escape_drawtext,
     escape_fontfile,
-    overlay_position_expr,
     segundos_para_ffmpeg,
     tamanho_sombra_drawtext,
 )
@@ -77,16 +76,7 @@ class VideoFilterMixin:
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(cfg.font_family, False))
         opcoes.append(f"fontfile='{fontfile}'")
 
-        posicoes = {
-            "inferior_direita": (f"w-tw-{margin_x}", f"h-th-{margin_y}"),
-            "inferior_esquerda": (f"{margin_x}", f"h-th-{margin_y}"),
-            "inferior_centro": ("(w-tw)/2", f"h-th-{margin_y}"),
-            "superior_direita": (f"w-tw-{margin_x}", f"{margin_y}"),
-            "superior_esquerda": (f"{margin_x}", f"{margin_y}"),
-            "superior_centro": ("(w-tw)/2", f"{margin_y}"),
-            "centro": ("(w-tw)/2", "(h-th)/2"),
-        }
-        x, y = posicoes.get(cfg.position, posicoes["inferior_direita"])
+        x, y = str(margin_x), str(margin_y)
         shadow_size = tamanho_sombra_drawtext(getattr(cfg, "shadow_size", 2.0) * escala_render)
 
         opcoes += [
@@ -110,11 +100,8 @@ class VideoFilterMixin:
     def criar_overlay_watermark_imagem(self, entrada_video: str, indice_imagem: int) -> list[str]:
         cfg = self.config.watermark
         escala_render = self.render_scale
-        x, y = overlay_position_expr(
-            cfg.position,
-            int(round(cfg.margin_x * escala_render)),
-            int(round(cfg.margin_y * escala_render)),
-        )
+        x = str(int(round(cfg.margin_x * escala_render)))
+        y = str(int(round(cfg.margin_y * escala_render)))
         filtros: list[str] = []
 
         # Corrige a marca d'água por imagem: normaliza a imagem para RGBA,
@@ -169,17 +156,8 @@ class VideoFilterMixin:
 
         return winfonts / "arial.ttf"
 
-    def posicao_drawtext_expr(self, position: str, margin_x: int, margin_y: int) -> tuple[str, str]:
-        posicoes = {
-            "inferior_direita": (f"w-tw-{margin_x}", f"h-th-{margin_y}"),
-            "inferior_esquerda": (f"{margin_x}", f"h-th-{margin_y}"),
-            "inferior_centro": ("(w-tw)/2", f"h-th-{margin_y}"),
-            "superior_direita": (f"w-tw-{margin_x}", f"{margin_y}"),
-            "superior_esquerda": (f"{margin_x}", f"{margin_y}"),
-            "superior_centro": ("(w-tw)/2", f"{margin_y}"),
-            "centro": ("(w-tw)/2", "(h-th)/2"),
-        }
-        return posicoes.get(position, posicoes["inferior_esquerda"])
+    def coordenadas_drawtext_expr(self, margin_x: int, margin_y: int) -> tuple[str, str]:
+        return str(margin_x), str(margin_y)
 
     def criar_drawtext_filtro_evento(self, entrada: str, saida: str, texto: str, inicio: float, fim: float, cfg, intro: bool = False) -> str:
         inicio = max(0.0, float(inicio))
@@ -198,16 +176,14 @@ class VideoFilterMixin:
         fontfile = escape_fontfile(self.caminho_fontfile_drawtext(font_family, bold))
 
         if intro:
-            x, y = self.posicao_drawtext_expr(
-                getattr(cfg, "position", "inferior_esquerda"),
+            x, y = self.coordenadas_drawtext_expr(
                 int(round(int(getattr(cfg, "margin_x", 90)) * escala_render)),
                 int(round(int(getattr(cfg, "margin_y", 120)) * escala_render)),
             )
         else:
-            x, y = self.posicao_drawtext_expr(
-                getattr(cfg, "position", "inferior_esquerda"),
-                int(round(int(getattr(cfg, "margin_left", 45)) * escala_render)),
-                int(round(int(getattr(cfg, "margin_bottom", 42)) * escala_render)),
+            x, y = self.coordenadas_drawtext_expr(
+                int(round(int(getattr(cfg, "margin_x", 45)) * escala_render)),
+                int(round(int(getattr(cfg, "margin_y", 980)) * escala_render)),
             )
 
         opcoes = [

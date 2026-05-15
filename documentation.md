@@ -6,9 +6,9 @@ O TAURUS Video Maker monta vídeos lo-fi longos combinando uma mídia visual bas
 
 ## Versão do Script
 
-A versão atual do script é `8.0.74`.
+A versão atual do script é `8.0.75`.
 
-O projeto segue versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar a partir da versão publicada atual, por exemplo `8.0.74`, `8.0.75` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
+O projeto segue versionamento incremental para o script. A versão 8 é a base atual; mudanças menores e correções devem avançar a partir da versão publicada atual, por exemplo `8.0.75`, `8.0.76` e assim por diante. Mudanças maiores podem avançar a versão secundária ou principal quando fizer sentido.
 
 Sempre que a versão do script mudar, atualize:
 
@@ -43,7 +43,8 @@ O projeto separa o ponto de entrada, a interface e o backend:
 - `ui/main_window.py` contém a janela principal, autosave, configuração e orquestração de render.
 - `ui/left_panel.py`, `ui/center_panel.py` e `ui/right_panel.py` contêm os três painéis principais.
 - `ui/preview_canvas.py` contém o preview estático arrastável.
-- `ui/common.py` contém widgets reutilizáveis, helpers visuais, constantes de layout e stylesheet.
+- `ui/common.py` contém widgets reutilizáveis e helpers visuais.
+- `ui/style_tokens.py` concentra cores, raios, tamanhos, variantes de botão e geração de QSS da interface.
 - `img/` contém o ícone e imagens usadas pelo aplicativo.
 
 ## FFmpeg Local
@@ -91,6 +92,7 @@ Mídia visual base:
 
 Os textos de títulos das músicas, frases de introdução e marca d'água em texto compartilham os mesmos controles principais:
 
+- margem X/Y calculada a partir do canto superior esquerdo do vídeo final 1920x1080, onde `0,0` é o topo esquerdo;
 - fonte, tamanho e cor;
 - opacidade da fonte;
 - sombra ativável, cor da sombra, tamanho da sombra e opacidade da sombra;
@@ -98,13 +100,13 @@ Os textos de títulos das músicas, frases de introdução e marca d'água em te
 
 O tamanho padrão do fundo usa 6 px como base: 4 px acima do texto, 6 px abaixo e 6 px nas laterais. Esse valor pode ser ajustado pelo slider `Tam. fundo`.
 
-No preview estático, os textos e a marca d'água podem ser arrastados diretamente sobre a área do vídeo. O arraste atualiza a posição e as margens correspondentes nos controles da lateral.
+No preview estático, os textos e a marca d'água podem ser arrastados diretamente sobre a área do vídeo. O arraste atualiza as margens X/Y nos controles da lateral, sempre usando o canto superior esquerdo como origem.
 
 `Ctrl+Z` desfaz a última alteração de configuração enquanto não houver render ou preview em andamento.
 
 ## Ordem e Transições das Músicas
 
-A subaba `Músicas > Nomes` lista as faixas detectadas na pasta escolhida. Os botões `Subir` e `Descer` alteram a ordem manual do render e essa ordem é salva junto com as configurações.
+A subaba `Músicas > Nomes` lista as faixas detectadas na pasta escolhida. As faixas podem ser arrastadas na própria lista para reordenar o render. As setas `↑` e `↓`, no canto direito, também movem a faixa selecionada e essa ordem é salva junto com as configurações.
 
 Na aba `Áudio`, o campo `Crossfade` define a sobreposição entre faixas consecutivas. O campo `Silêncio` adiciona pausa entre faixas quando o crossfade está zerado. Se ambos forem definidos, o crossfade tem prioridade e o silêncio entre faixas é ignorado no render.
 

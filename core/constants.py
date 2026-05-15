@@ -7,7 +7,7 @@ import os
 import sys
 from pathlib import Path
 
-APP_VERSION = "8.0.74"
+APP_VERSION = "8.0.75"
 
 
 def obter_diretorio_aplicacao() -> Path:

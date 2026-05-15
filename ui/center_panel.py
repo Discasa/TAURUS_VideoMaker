@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QProgressBar, QSlider
 
 from .common import ActionButton, LOG_HEIGHT_OPEN, PREVIEW_HEIGHT_NORMAL
 from .preview_canvas import PreviewCanvas
+from .style_tokens import COLORS
 
 class CenterPanel(QFrame):
     def __init__(self, ui):
@@ -38,7 +39,7 @@ class CenterPanel(QFrame):
         ui.preview_audio.setVolume(1.0)
         ui.video_player.setAudioOutput(ui.preview_audio)
         ui.video_widget = QVideoWidget()
-        ui.video_widget.setStyleSheet("background: #000000; border: none;")
+        ui.video_widget.setStyleSheet(f"background-color: {COLORS.black}; border: none;")
         ui.video_player.setVideoOutput(ui.video_widget)
         ui.video_player.mediaStatusChanged.connect(ui.loop_preview_video)
         ui.video_widget.hide()

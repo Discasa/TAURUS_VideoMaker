@@ -10,15 +10,11 @@ from pathlib import Path
 @dataclass
 class FonteTextoConfig:
     font_family: str = "Georgia"
-    # Mantido apenas para compatibilidade com configs antigas.
-    # O modal novo usa fontes do sistema pelo QFontComboBox.
-    font_file: str = ""
     font_size: int = 34
     color: str = "#FFFFFF"
     opacity: float = 0.93
-    position: str = "inferior_esquerda"
-    margin_left: int = 45
-    margin_bottom: int = 42
+    margin_x: int = 45
+    margin_y: int = 980
     typing_duration: float = 2.2
     erasing_duration: float = 1.6
     shadow_enabled: bool = True
@@ -40,14 +36,11 @@ class WatermarkConfig:
     image_path: str = ""
     image_width: int = 180
     font_family: str = "Segoe UI Symbol"
-    # Mantido apenas para compatibilidade com configs antigas.
-    font_file: str = ""
     font_size: int = 44
     color: str = "#FFFFFF"
     opacity: float = 0.70
-    position: str = "inferior_direita"
-    margin_x: int = 45
-    margin_y: int = 42
+    margin_x: int = 1695
+    margin_y: int = 950
     shadow_enabled: bool = True
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.60
@@ -84,14 +77,12 @@ class IntroTextConfig:
     random_count: int = 3
     delay_music_seconds: float = 0.0
     font_family: str = "Georgia"
-    font_file: str = ""
     font_size: int = 48
     font_weight: int = 700
     color: str = "#FFFFFF"
     opacity: float = 0.92
-    position: str = "inferior_esquerda"
     margin_x: int = 90
-    margin_y: int = 120
+    margin_y: int = 900
     shadow_enabled: bool = True
     shadow_color: str = "#000000"
     shadow_opacity: float = 0.65

@@ -3,14 +3,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from core.engine import RenderConfig, limpar_hex
+from core.engine import FINAL_RENDER_SIZE, RenderConfig, limpar_hex
 
 from PySide6.QtCore import QPointF, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QFont, QFontMetrics, QPainter, QPixmap
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
+from .style_tokens import COLORS
+
 class PreviewCanvas(QWidget):
-    positionChanged = Signal(str, str, int, int)
+    positionChanged = Signal(str, int, int)
 
     def __init__(self):
         super().__init__()
@@ -34,11 +36,11 @@ class PreviewCanvas(QWidget):
         self._handles = []
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
-        painter.fillRect(self.rect(), QColor("#131D2B"))
+        painter.fillRect(self.rect(), QColor(COLORS.section_bg))
 
         frame = self._video_rect()
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor("#000000"))
+        painter.setBrush(QColor(COLORS.black))
         painter.drawRect(frame)
 
         if self.base_pixmap and not self.base_pixmap.isNull():
@@ -54,7 +56,7 @@ class PreviewCanvas(QWidget):
             placeholder_font = QFont("Segoe UI")
             placeholder_font.setPixelSize(15)
             painter.setFont(placeholder_font)
-            painter.setPen(QColor("#8FA4C4"))
+            painter.setPen(QColor(COLORS.text_muted))
             painter.drawText(frame.toRect(), Qt.AlignCenter, "Selecione um vídeo, GIF ou imagem para o preview")
 
         if self.config:
@@ -62,7 +64,7 @@ class PreviewCanvas(QWidget):
             self._draw_intro(painter, frame)
             self._draw_watermark(painter, frame)
 
-        painter.setPen(QColor("#26354D"))
+        painter.setPen(QColor(COLORS.border_subtle))
         painter.setBrush(Qt.NoBrush)
         painter.drawRect(frame)
 
@@ -78,85 +80,41 @@ class PreviewCanvas(QWidget):
         y = area.y() + (area.height() - height) / 2
         return QRectF(x, y, width, height)
 
-    def _positioned_rect(self, frame: QRectF, size: QSize, position: str, margin_x: int, margin_y: int) -> QRectF:
+    def _positioned_rect(self, frame: QRectF, size: QSize, margin_x: int, margin_y: int) -> QRectF:
         w = size.width()
         h = size.height()
-        if "esquerda" in position:
-            x = frame.left() + margin_x
-        elif "direita" in position:
-            x = frame.right() - margin_x - w
-        else:
-            x = frame.left() + (frame.width() - w) / 2
-
-        if "superior" in position:
-            y = frame.top() + margin_y
-        elif "inferior" in position:
-            y = frame.bottom() - margin_y - h
-        else:
-            y = frame.top() + (frame.height() - h) / 2
+        x = frame.left() + margin_x
+        y = frame.top() + margin_y
         return QRectF(x, y, w, h)
 
-    def _register_handle(self, kind: str, rect: QRectF, position: str):
+    def _coordinate_scale(self, frame: QRectF) -> float:
+        return frame.width() / max(1, FINAL_RENDER_SIZE[0])
+
+    def _register_handle(self, kind: str, rect: QRectF):
         if rect.isValid():
-            self._handles.append({"kind": kind, "rect": QRectF(rect), "position": position})
+            self._handles.append({"kind": kind, "rect": QRectF(rect)})
 
-    def _position_from_rect(self, frame: QRectF, rect: QRectF) -> tuple[str, int, int]:
-        cx = (rect.center().x() - frame.left()) / max(1.0, frame.width())
-        cy = (rect.center().y() - frame.top()) / max(1.0, frame.height())
-
-        if cy < 0.33:
-            vertical = "superior"
-        elif cy > 0.67:
-            vertical = "inferior"
-        else:
-            vertical = "centro"
-
-        if cx < 0.33:
-            horizontal = "esquerda"
-        elif cx > 0.67:
-            horizontal = "direita"
-        else:
-            horizontal = "centro"
-
-        if vertical == "centro":
-            position = "centro"
-        elif horizontal == "centro":
-            position = f"{vertical}_centro"
-        else:
-            position = f"{vertical}_{horizontal}"
-
-        if "esquerda" in position:
-            margin_x = rect.left() - frame.left()
-        elif "direita" in position:
-            margin_x = frame.right() - rect.right()
-        else:
-            margin_x = abs(rect.center().x() - frame.center().x())
-
-        if "superior" in position:
-            margin_y = rect.top() - frame.top()
-        elif "inferior" in position:
-            margin_y = frame.bottom() - rect.bottom()
-        else:
-            margin_y = abs(rect.center().y() - frame.center().y())
-
-        scale = max(0.35, frame.width() / 1280)
-        return position, max(0, int(round(margin_x / scale))), max(0, int(round(margin_y / scale)))
+    def _position_from_rect(self, frame: QRectF, rect: QRectF) -> tuple[int, int]:
+        margin_x = rect.left() - frame.left()
+        margin_y = rect.top() - frame.top()
+        scale = self._coordinate_scale(frame)
+        return max(0, int(round(margin_x / scale))), max(0, int(round(margin_y / scale)))
 
     def _draw_text(self, painter: QPainter, frame: QRectF, text: str, font_family: str, font_size: int, color: str,
-                   opacity: float, position: str, margin_x: int, margin_y: int, weight: int = 700,
+                   opacity: float, margin_x: int, margin_y: int, weight: int = 700,
                    shadow_opacity: float = 0.55, shadow_color: str = "#000000",
                    shadow_size: float = 2.0, box: bool = False, box_color: str = "#000000",
                    box_opacity: float = 0.35, background_padding: float = 6.0):
         if not text:
             return QRectF()
-        scale = max(0.35, frame.width() / 1280)
+        scale = self._coordinate_scale(frame)
         font = QFont(font_family or "Segoe UI")
         font.setPixelSize(max(11, int(font_size * scale)))
         font.setWeight(QFont.Weight(max(100, min(900, int(weight)))))
         painter.setFont(font)
         metrics = QFontMetrics(font)
         bounds = QRectF(metrics.tightBoundingRect(text))
-        rect = self._positioned_rect(frame, bounds.size(), position, int(margin_x * scale), int(margin_y * scale))
+        rect = self._positioned_rect(frame, bounds.size(), int(margin_x * scale), int(margin_y * scale))
         text_origin = QPointF(rect.left() - bounds.left(), rect.top() - bounds.top())
 
         if box:
@@ -190,9 +148,8 @@ class PreviewCanvas(QWidget):
             cfg.font_size,
             cfg.color,
             cfg.opacity,
-            cfg.position,
-            cfg.margin_left,
-            cfg.margin_bottom,
+            cfg.margin_x,
+            cfg.margin_y,
             700,
             cfg.shadow_opacity if cfg.shadow_enabled else 0.0,
             cfg.shadow_color,
@@ -202,7 +159,7 @@ class PreviewCanvas(QWidget):
             cfg.background_opacity,
             cfg.background_padding,
         )
-        self._register_handle("title", rect, cfg.position)
+        self._register_handle("title", rect)
 
     def _draw_intro(self, painter: QPainter, frame: QRectF):
         intro = self.config.intro
@@ -217,7 +174,6 @@ class PreviewCanvas(QWidget):
             intro.font_size,
             intro.color,
             intro.opacity,
-            intro.position,
             intro.margin_x,
             intro.margin_y,
             intro.font_weight,
@@ -229,7 +185,7 @@ class PreviewCanvas(QWidget):
             intro.box_opacity,
             intro.background_padding,
         )
-        self._register_handle("intro", rect, intro.position)
+        self._register_handle("intro", rect)
 
     def _draw_watermark(self, painter: QPainter, frame: QRectF):
         wm = self.config.watermark
@@ -239,14 +195,14 @@ class PreviewCanvas(QWidget):
             pixmap = QPixmap(wm.image_path)
             if pixmap.isNull():
                 return
-            scale = max(0.35, frame.width() / 1280)
+            scale = self._coordinate_scale(frame)
             width = max(24, int(wm.image_width * scale))
             scaled = pixmap.scaledToWidth(width, Qt.SmoothTransformation)
-            rect = self._positioned_rect(frame, scaled.size(), wm.position, int(wm.margin_x * scale), int(wm.margin_y * scale))
+            rect = self._positioned_rect(frame, scaled.size(), int(wm.margin_x * scale), int(wm.margin_y * scale))
             painter.setOpacity(max(0, min(1, wm.opacity)))
             painter.drawPixmap(rect.toRect(), scaled)
             painter.setOpacity(1.0)
-            self._register_handle("watermark", rect, wm.position)
+            self._register_handle("watermark", rect)
         else:
             rect = self._draw_text(
                 painter,
@@ -256,7 +212,6 @@ class PreviewCanvas(QWidget):
                 wm.font_size,
                 wm.color,
                 wm.opacity,
-                wm.position,
                 wm.margin_x,
                 wm.margin_y,
                 700,
@@ -268,7 +223,7 @@ class PreviewCanvas(QWidget):
                 wm.background_opacity,
                 wm.background_padding,
             )
-            self._register_handle("watermark", rect, wm.position)
+            self._register_handle("watermark", rect)
 
     def mousePressEvent(self, event):
         if event.button() != Qt.LeftButton:
@@ -294,8 +249,8 @@ class PreviewCanvas(QWidget):
         rect.translate(delta)
         rect.moveLeft(max(frame.left(), min(rect.left(), frame.right() - rect.width())))
         rect.moveTop(max(frame.top(), min(rect.top(), frame.bottom() - rect.height())))
-        position, margin_x, margin_y = self._position_from_rect(frame, rect)
-        self.positionChanged.emit(self._drag_handle["kind"], position, margin_x, margin_y)
+        margin_x, margin_y = self._position_from_rect(frame, rect)
+        self.positionChanged.emit(self._drag_handle["kind"], margin_x, margin_y)
         event.accept()
 
     def mouseReleaseEvent(self, event):

@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-from core.engine import SCRIPT_DIR, limpar_hex, popular_combo_posicoes
+from core.engine import SCRIPT_DIR, limpar_hex
 
 from PySide6.QtCore import Property, QPropertyAnimation, QRectF, QSize, Qt, Signal
 from PySide6.QtGui import QColor, QCursor, QFontDatabase, QPainter, QPen
@@ -28,348 +28,26 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-CONTROL_HEIGHT = 34
-RIGHT_FORM_WIDTH = 430
-PREVIEW_HEIGHT_NORMAL = 380
-PREVIEW_HEIGHT_LOG_OPEN = 270
-PREVIEW_ASPECT_RATIO = 16 / 9
-LOG_HEIGHT_OPEN = 260
-BASE_WINDOW_WIDTH = 1520
-BASE_WINDOW_HEIGHT = 820
-BASE_WINDOW_MIN_WIDTH = 1420
-BASE_WINDOW_MIN_HEIGHT = 740
-UI_ZOOM_MIN = 0.5
-UI_ZOOM_MAX = 2.0
-
-
-STYLE_PRIME = """
-* {
-    font-family: "Segoe UI", "Helvetica Neue", sans-serif;
-    font-size: 12px;
-    color: #EAF2FF;
-}
-QWidget {
-    background: #0B111C;
-}
-QFrame#LeftPanel, QFrame#RightPanel {
-    background: #101826;
-    border: 1px solid #233047;
-    border-radius: 14px;
-}
-QFrame#CenterPanel {
-    background: #0B111C;
-}
-QFrame#Section, QFrame#Transport, QFrame#PreviewShell {
-    background: #131D2B;
-    border: 1px solid #26354D;
-    border-radius: 18px;
-}
-QLabel#Brand {
-    color: #F6FAFF;
-    font-size: 20px;
-    font-weight: 800;
-}
-QLabel#Subtle {
-    color: #8FA4C4;
-}
-QLabel#SectionTitle {
-    color: #DCEBFF;
-    font-size: 13px;
-    font-weight: 700;
-}
-QLabel#ColumnTitle {
-    color: #F6FAFF;
-    font-size: 16px;
-    font-weight: 800;
-}
-QLabel#ImagePreview {
-    background: #0D1420;
-    border: 1px solid #31415C;
-    border-radius: 12px;
-    color: #8FA4C4;
-}
-QWidget#PreviewGroup {
-    background: transparent;
-}
-QWidget#PreviewVolumeBar {
-    background: transparent;
-}
-QLabel {
-    background: transparent;
-}
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {
-    background: #0D1420;
-    border: 1px solid #31415C;
-    border-radius: 17px;
-    min-height: 32px;
-    max-height: 32px;
-    padding: 0px 12px;
-    selection-background-color: #2F86FF;
-}
-QTextEdit {
-    background: #0D1420;
-    border: 1px solid #31415C;
-    border-radius: 14px;
-    padding: 10px 12px;
-    selection-background-color: #2F86FF;
-}
-QLineEdit {
-    border-radius: 17px;
-}
-QSpinBox, QDoubleSpinBox {
-    border-radius: 17px;
-    padding-left: 12px;
-    padding-right: 12px;
-}
-QComboBox {
-    border-radius: 17px;
-    padding-left: 12px;
-    padding-right: 36px;
-}
-QLineEdit:disabled, QSpinBox:disabled, QDoubleSpinBox:disabled, QComboBox:disabled {
-    background: #0D1420;
-    border: 1px solid #26354D;
-    border-radius: 17px;
-    color: #7C8DA8;
-}
-QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus, QComboBox:focus, QTextEdit:focus {
-    border: 1px solid #5EA0FF;
-    background: #111B2B;
-}
-QSpinBox::up-button, QSpinBox::down-button, QDoubleSpinBox::up-button, QDoubleSpinBox::down-button {
-    width: 0px;
-    border: none;
-}
-QComboBox::drop-down {
-    subcontrol-origin: padding;
-    subcontrol-position: top right;
-    width: 32px;
-    background: transparent;
-    border: none;
-    border-top-right-radius: 17px;
-    border-bottom-right-radius: 17px;
-}
-QComboBox::down-arrow {
-    image: none;
-    width: 0px;
-    height: 0px;
-    border-left: 5px solid transparent;
-    border-right: 5px solid transparent;
-    border-top: 6px solid #6FB1FF;
-    margin-right: 8px;
-}
-QComboBox QAbstractItemView {
-    background: #101826;
-    border: 1px solid #31415C;
-    border-radius: 10px;
-    selection-background-color: #2F86FF;
-    outline: none;
-}
-QTabWidget {
-    background: #101826;
-}
-QTabWidget::pane {
-    border: 1px solid #26354D;
-    border-radius: 0px;
-    background: #101826;
-    top: -1px;
-}
-QTabBar::tab {
-    background: #0A101A;
-    color: #8FA4C4;
-    border: 1px solid #26354D;
-    border-bottom: 1px solid #26354D;
-    padding: 8px 8px;
-    min-width: 55px;
-    border-top-left-radius: 11px;
-    border-top-right-radius: 11px;
-}
-QTabBar::tab:selected {
-    background: #101826;
-    color: #FFFFFF;
-    border-color: #26354D;
-    border-bottom-color: #101826;
-}
-QTabBar::tab:!selected {
-    background: #0B111C;
-    color: #8FA4C4;
-}
-QProgressBar {
-    background: #0D1420;
-    border: 1px solid #31415C;
-    border-radius: 7px;
-    min-height: 10px;
-    max-height: 14px;
-    text-align: center;
-}
-QProgressBar::chunk {
-    background: #2F86FF;
-    border-radius: 6px;
-}
-QSlider {
-    background: transparent;
-    min-height: 24px;
-    max-height: 24px;
-}
-QSlider::groove:horizontal {
-    background: #131D2B;
-    border: 1px solid #26354D;
-    height: 6px;
-    border-radius: 3px;
-}
-QSlider::sub-page:horizontal {
-    background: #2F86FF;
-    border-radius: 3px;
-}
-QSlider::handle:horizontal {
-    background: #4B9AFF;
-    border: none;
-    width: 14px;
-    height: 14px;
-    margin: -4px 0;
-    border-radius: 7px;
-}
-QSlider::handle:horizontal:hover {
-    background: #6FB1FF;
-}
-QTableWidget {
-    background: #0D1420;
-    border: 1px solid #31415C;
-    border-radius: 0px;
-    gridline-color: #26354D;
-    outline: none;
-}
-QTableWidget::item {
-    padding: 3px 5px;
-}
-QTableCornerButton::section {
-    background: #17263C;
-    border: none;
-    border-right: 1px solid #31415C;
-    border-bottom: 1px solid #31415C;
-}
-QHeaderView::section {
-    background: #17263C;
-    border: none;
-    border-bottom: 1px solid #31415C;
-    padding: 5px;
-    color: #CFE2FF;
-    font-weight: 700;
-}
-QScrollBar:vertical {
-    background: #0D1420;
-    border-left: 1px solid #26354D;
-    width: 12px;
-    margin: 0px;
-}
-QScrollBar::handle:vertical {
-    background: #26354D;
-    border-radius: 5px;
-    min-height: 24px;
-    margin: 2px;
-}
-QScrollBar::handle:vertical:hover {
-    background: #31415C;
-}
-QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,
-QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-    background: transparent;
-    border: none;
-    height: 0px;
-}
-QScrollBar:horizontal {
-    background: #0D1420;
-    border-top: 1px solid #26354D;
-    height: 12px;
-    margin: 0px;
-}
-QScrollBar::handle:horizontal {
-    background: #26354D;
-    border-radius: 5px;
-    min-width: 24px;
-    margin: 2px;
-}
-QScrollBar::handle:horizontal:hover {
-    background: #31415C;
-}
-QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal,
-QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-    background: transparent;
-    border: none;
-    width: 0px;
-}
-"""
-
-
-def clamp_zoom(value: float) -> float:
-    return max(UI_ZOOM_MIN, min(UI_ZOOM_MAX, float(value)))
-
-
-def escala(valor: int | float, zoom: float, minimo: int = 1) -> int:
-    return max(minimo, int(round(float(valor) * zoom)))
-
-
-def zoom_stylesheet(zoom: float) -> str:
-    control_height = escala(CONTROL_HEIGHT, zoom, 18)
-    radius = max(4, control_height // 2)
-    tab_padding_y = escala(8, zoom, 3)
-    tab_padding_x = escala(8, zoom, 4)
-    slider_height = escala(24, zoom, 14)
-    slider_handle = escala(14, zoom, 8)
-    slider_groove = escala(6, zoom, 3)
-    return f"""
-* {{
-    font-size: {escala(12, zoom, 8)}px;
-}}
-QLabel#Brand {{
-    font-size: {escala(20, zoom, 12)}px;
-}}
-QLabel#SectionTitle {{
-    font-size: {escala(13, zoom, 8)}px;
-}}
-QLabel#ColumnTitle {{
-    font-size: {escala(16, zoom, 10)}px;
-}}
-QLineEdit, QSpinBox, QDoubleSpinBox, QComboBox {{
-    min-height: {control_height - 2}px;
-    max-height: {control_height - 2}px;
-    border-radius: {radius}px;
-    padding-left: {escala(12, zoom, 5)}px;
-    padding-right: {escala(12, zoom, 5)}px;
-}}
-QComboBox {{
-    padding-right: {escala(36, zoom, 16)}px;
-}}
-QComboBox::drop-down {{
-    width: {escala(32, zoom, 14)}px;
-    border-top-right-radius: {radius}px;
-    border-bottom-right-radius: {radius}px;
-}}
-QTabBar::tab {{
-    padding: {tab_padding_y}px {tab_padding_x}px;
-    min-width: {escala(55, zoom, 28)}px;
-    border-top-left-radius: {escala(11, zoom, 5)}px;
-    border-top-right-radius: {escala(11, zoom, 5)}px;
-}}
-QTextEdit {{
-    border-radius: {escala(14, zoom, 6)}px;
-    padding: {escala(10, zoom, 4)}px {escala(12, zoom, 5)}px;
-}}
-QSlider {{
-    min-height: {slider_height}px;
-    max-height: {slider_height}px;
-}}
-QSlider::groove:horizontal {{
-    height: {slider_groove}px;
-    border-radius: {max(2, slider_groove // 2)}px;
-}}
-QSlider::handle:horizontal {{
-    width: {slider_handle}px;
-    height: {slider_handle}px;
-    margin: -{max(1, (slider_handle - slider_groove) // 2)}px 0;
-    border-radius: {max(4, slider_handle // 2)}px;
-}}
-"""
+from .style_tokens import (
+    BASE_WINDOW_HEIGHT,
+    BASE_WINDOW_MIN_HEIGHT,
+    BASE_WINDOW_MIN_WIDTH,
+    BASE_WINDOW_WIDTH,
+    COLORS,
+    CONTROL_HEIGHT,
+    LOG_HEIGHT_OPEN,
+    PREVIEW_ASPECT_RATIO,
+    PREVIEW_HEIGHT_LOG_OPEN,
+    PREVIEW_HEIGHT_NORMAL,
+    RIGHT_FORM_WIDTH,
+    STYLE_PRIME,
+    UI_ZOOM_MAX,
+    UI_ZOOM_MIN,
+    action_button_stylesheet,
+    clamp_zoom,
+    escala,
+    zoom_stylesheet,
+)
 
 
 def section(title: str) -> tuple[QFrame, QVBoxLayout]:
@@ -438,42 +116,21 @@ class ActionButton(QPushButton):
         super().__init__(text)
         self.kind = kind
         self.base_width = width
+        self._zoom = 1.0
+        self.setObjectName("ActionButton")
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.setMinimumWidth(width)
         self.setFixedHeight(CONTROL_HEIGHT)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.refresh_style()
 
+    def set_zoom(self, zoom: float):
+        self._zoom = clamp_zoom(zoom)
+        self.setFixedHeight(escala(CONTROL_HEIGHT, self._zoom, 18))
+        self.refresh_style()
+
     def refresh_style(self):
-        palette = {
-            "normal": ("#18263A", "#213753", "#7EAFFF", "#31415C"),
-            "primary": ("#2F86FF", "#4B9AFF", "#FFFFFF", "#1F6FD9"),
-            "danger": ("#8A3A4A", "#A94C5F", "#FFFFFF", "#703040"),
-            "ghost": ("#111B2B", "#18263A", "#CFE2FF", "#31415C"),
-        }
-        bg, hover, text, border = palette.get(self.kind, palette["normal"])
-        pressed = border
-        self.setStyleSheet(f"""
-QPushButton {{
-    background: {bg};
-    color: {text};
-    border: 1px solid {border};
-    border-radius: 17px;
-    font-weight: 700;
-    padding: 0px 14px;
-}}
-QPushButton:hover {{
-    background: {hover};
-}}
-QPushButton:pressed {{
-    background: {pressed};
-}}
-QPushButton:disabled {{
-    background: #101826;
-    color: #5F6E84;
-    border: 1px solid #243148;
-}}
-""")
+        self.setStyleSheet(action_button_stylesheet(self.kind, self._zoom))
 
 
 class ToggleSwitch(QCheckBox):
@@ -528,16 +185,16 @@ class ToggleSwitch(QCheckBox):
         track_y = (self.height() - track_h) / 2
         track = QRectF(0, track_y, track_w, track_h)
         painter.setPen(Qt.NoPen)
-        painter.setBrush(QColor("#2F86FF") if self.isChecked() else QColor("#3A4658"))
+        painter.setBrush(QColor(COLORS.accent if self.isChecked() else COLORS.switch_off))
         painter.drawRoundedRect(track, track_h / 2, track_h / 2)
 
         knob_x = inset + self._offset * (track_w - knob_d - (2 * inset))
         knob_y = track_y + inset
-        painter.setBrush(QColor("#EAF2FF"))
+        painter.setBrush(QColor(COLORS.text_main))
         painter.drawEllipse(QRectF(knob_x, knob_y, knob_d, knob_d))
 
         if self.text():
-            painter.setPen(QColor("#DCEBFF"))
+            painter.setPen(QColor(COLORS.text_section))
             painter.drawText(
                 self.rect().adjusted(track_w + escala(10, self._zoom, 4), 0, 0, 0),
                 Qt.AlignVCenter | Qt.AlignLeft,
@@ -583,7 +240,7 @@ class ColorSwatch(QPushButton):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         rect = QRectF(1.5, 1.5, self.width() - 3, self.height() - 3)
-        painter.setPen(QPen(QColor("#31415C"), 1.5))
+        painter.setPen(QPen(QColor(COLORS.border_control), 1.5))
         painter.setBrush(QColor(limpar_hex(self._color)))
         painter.drawEllipse(rect)
 
@@ -706,13 +363,6 @@ def combo_fontes(default_family: str = "Georgia") -> QComboBox:
     return combo
 
 
-def combo_posicao(default: str) -> QComboBox:
-    combo = QComboBox()
-    popular_combo_posicoes(combo, default)
-    set_input_width(combo)
-    return combo
-
-
 def margins_widget(x_spin: QSpinBox, y_spin: QSpinBox) -> QWidget:
     box = QWidget()
     layout = QHBoxLayout(box)
@@ -741,5 +391,7 @@ def remove_spin_buttons(root: QWidget):
 def padronizar_altura_controles(root: QWidget, zoom: float = 1.0):
     height = escala(CONTROL_HEIGHT, zoom, 18)
     for child in root.findChildren(QWidget):
-        if isinstance(child, (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, ActionButton)):
+        if isinstance(child, ActionButton):
+            child.set_zoom(zoom)
+        elif isinstance(child, (QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox)):
             child.setFixedHeight(height)

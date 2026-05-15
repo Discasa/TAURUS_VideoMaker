@@ -4,9 +4,9 @@ TAURUS Video Maker é um aplicativo de desktop para Windows que cria vídeos lo-
 
 ## Versão Atual
 
-O script está na versão `8.0.74`.
+O script está na versão `8.0.75`.
 
-A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.74`, `8.0.75` e assim por diante.
+A versão 8 marca a base atual do projeto. A partir daqui, alterações incrementais no script devem subir a versão em formato semântico, como `8.0.75`, `8.0.76` e assim por diante.
 
 ## Recursos
 
@@ -16,8 +16,8 @@ A versão 8 marca a base atual do projeto. A partir daqui, alterações incremen
 - Renderização por CPU/libx264 ou GPU NVIDIA/NVENC.
 - Normalização de loudness com `loudnorm`.
 - Fade in e fade out configuráveis.
-- Texto com nome das faixas, marca d'água e frases de introdução, com controles de fonte, cor, sombra e fundo.
-- Reordenação manual das músicas antes do render.
+- Texto com nome das faixas, marca d'água e frases de introdução, com coordenadas X/Y a partir do canto superior esquerdo.
+- Reordenação manual das músicas por arraste ou por setas antes do render.
 - Preview estático com textos e marca d'água reposicionáveis por arraste.
 - Preview em qualidade reduzida, sem processamento de áudio, para revisar o vídeo dentro da interface.
 - Exportação final sempre gerada em 1920x1080.
@@ -79,7 +79,8 @@ Pasta do projeto/
     center_panel.py           Preview, player, progresso e log
     right_panel.py            Container das abas de ajustes
     preview_canvas.py         Preview estático arrastável
-    common.py                 Widgets, helpers e constantes visuais
+    common.py                 Widgets e helpers visuais reutilizáveis
+    style_tokens.py           Tokens de cores, raios, tamanhos e QSS
   requirements.txt            Dependências de execução
   ffmpeg/bin/                 FFmpeg local usado pelo aplicativo
   img/                        Ícone e imagens do aplicativo

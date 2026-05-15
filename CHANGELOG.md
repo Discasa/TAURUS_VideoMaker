@@ -1,5 +1,12 @@
 # Histórico de Mudanças
 
+## 8.0.75 - 2026-05-11
+
+- Removido o seletor de posição dos textos e da marca d'água; o posicionamento agora usa margens X/Y a partir do canto superior esquerdo (`0,0`).
+- A lista de músicas agora aceita arrastar e soltar para reordenar, com botões compactos `↑` e `↓` alinhados à direita.
+- Restaurado o estilo pílula dos botões após o ajuste de zoom da interface.
+- Adicionado `ui/style_tokens.py` para centralizar cores, raios, tamanhos, variantes de botão e geração de QSS.
+
 ## 8.0.74 - 2026-05-10
 
 - Renomeado o fluxo visual de `Pre render` para `Preview/Parar`.

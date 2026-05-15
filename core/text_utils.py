@@ -83,38 +83,6 @@ def boxborderw_texto(valor: float) -> str:
     return f"{topo}|{padding}|{padding}|{padding}"
 
 
-def opcoes_posicao():
-    return [
-        ("Inferior direita", "inferior_direita"),
-        ("Inferior esquerda", "inferior_esquerda"),
-        ("Inferior centro", "inferior_centro"),
-        ("Superior direita", "superior_direita"),
-        ("Superior esquerda", "superior_esquerda"),
-        ("Superior centro", "superior_centro"),
-        ("Centro", "centro"),
-    ]
-
-
-def popular_combo_posicoes(combo, valor_atual: str):
-    for texto, valor in opcoes_posicao():
-        combo.addItem(texto, valor)
-    idx = combo.findData(valor_atual)
-    combo.setCurrentIndex(max(0, idx))
-
-
-def overlay_position_expr(position: str, margin_x: int, margin_y: int) -> tuple[str, str]:
-    posicoes = {
-        "inferior_direita": (f"W-w-{margin_x}", f"H-h-{margin_y}"),
-        "inferior_esquerda": (f"{margin_x}", f"H-h-{margin_y}"),
-        "inferior_centro": ("(W-w)/2", f"H-h-{margin_y}"),
-        "superior_direita": (f"W-w-{margin_x}", f"{margin_y}"),
-        "superior_esquerda": (f"{margin_x}", f"{margin_y}"),
-        "superior_centro": ("(W-w)/2", f"{margin_y}"),
-        "centro": ("(W-w)/2", "(H-h)/2"),
-    }
-    return posicoes.get(position, posicoes["inferior_direita"])
-
-
 def gerar_nome_video(prefixo: str = "video_final") -> str:
     data_hora = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     prefixo = re.sub(r"[^A-Za-z0-9_\-]+", "_", prefixo or "video_final").strip("_") or "video_final"

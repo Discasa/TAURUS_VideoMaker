@@ -40,11 +40,12 @@ from core.engine import (
     salvar_config,
 )
 
-from PySide6.QtCore import QSize, Qt, QTimer, QUrl
+from PySide6.QtCore import QSize, Qt, QTimer, QUrl, Signal
 from PySide6.QtGui import QIcon, QKeySequence, QPixmap, QShortcut, QTextCursor
 from PySide6.QtMultimedia import QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
+    QAbstractItemView,
     QAbstractScrollArea,
     QCheckBox,
     QComboBox,
@@ -92,7 +93,6 @@ from .common import (
     centered_widget,
     clamp_zoom,
     combo_fontes,
-    combo_posicao,
     escala,
     margins_widget,
     padronizar_altura_controles,
@@ -104,6 +104,58 @@ from .common import (
 )
 from .left_panel import LeftPanel
 from .right_panel import RightPanel
+
+
+class TrackTitlesTable(QTableWidget):
+    rowsReordered = Signal()
+
+    def __init__(self, rows: int = 0, columns: int = 1):
+        super().__init__(rows, columns)
+        self._drag_row = -1
+        self.setDragEnabled(True)
+        self.setAcceptDrops(True)
+        self.setDropIndicatorShown(True)
+        self.setDragDropOverwriteMode(False)
+        self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
+        self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
+        self.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+    def startDrag(self, supported_actions):
+        self._drag_row = self.currentRow()
+        super().startDrag(supported_actions)
+
+    def dropEvent(self, event):
+        source_row = self._drag_row
+        self._drag_row = -1
+        if source_row < 0:
+            super().dropEvent(event)
+            self.rowsReordered.emit()
+            return
+
+        point = event.position().toPoint() if hasattr(event, "position") else event.pos()
+        target_row = self.indexAt(point).row()
+        indicator = self.dropIndicatorPosition()
+        if target_row < 0 or indicator == QAbstractItemView.DropIndicatorPosition.OnViewport:
+            target_row = self.rowCount()
+        elif indicator == QAbstractItemView.DropIndicatorPosition.BelowItem:
+            target_row += 1
+
+        if target_row > source_row:
+            target_row -= 1
+
+        if target_row == source_row or target_row < 0:
+            event.ignore()
+            return
+
+        item = self.takeItem(source_row, 0)
+        self.removeRow(source_row)
+        self.insertRow(target_row)
+        self.setItem(target_row, 0, item)
+        self.selectRow(target_row)
+        event.acceptProposedAction()
+        self.rowsReordered.emit()
+
 
 class MainUI(QWidget):
     def __init__(self):
@@ -196,9 +248,8 @@ class MainUI(QWidget):
         self.font_titles = combo_fontes("Georgia")
         self.font_titles_size = QSpinBox(); self.font_titles_size.setRange(8, 160); self.font_titles_size.setValue(34)
         self.font_titles_color = ColorSwatch("#FFFFFF")
-        self.font_titles_pos = combo_posicao("inferior_esquerda")
-        self.font_titles_mx = QSpinBox(); self.font_titles_mx.setRange(0, 800); self.font_titles_mx.setValue(45)
-        self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 800); self.font_titles_my.setValue(42)
+        self.font_titles_mx = QSpinBox(); self.font_titles_mx.setRange(0, 1920); self.font_titles_mx.setValue(45)
+        self.font_titles_my = QSpinBox(); self.font_titles_my.setRange(0, 1080); self.font_titles_my.setValue(980)
         self.font_titles_typ = QDoubleSpinBox(); self.font_titles_typ.setRange(0.1, 20); self.font_titles_typ.setValue(2.2)
         self.font_titles_era = QDoubleSpinBox(); self.font_titles_era.setRange(0.1, 20); self.font_titles_era.setValue(1.6)
         self.font_titles_opc = DecimalSlider(0.05, 1.0, 0.05, 0.95)
@@ -212,18 +263,17 @@ class MainUI(QWidget):
         self.font_titles_background_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.font_titles_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "Posição", self.font_titles_pos)
-        add_row(form, 1, "Margens", margins_widget(self.font_titles_mx, self.font_titles_my))
-        add_row(form, 2, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
-        add_row(form, 3, "Opacidade", self.font_titles_opc)
-        add_row(form, 4, "Sombra do texto", self.toggle_color_row(self.font_titles_shadow_enabled, self.font_titles_shadow_color))
-        add_row(form, 5, "Tam. sombra", self.font_titles_shadow_size)
-        add_row(form, 6, "Opac. sombra", self.font_titles_shadow)
-        add_row(form, 7, "Fundo do texto", self.toggle_color_row(self.font_titles_background_box, self.font_titles_background_color))
-        add_row(form, 8, "Tam. fundo", self.font_titles_background_padding)
-        add_row(form, 9, "Opac. fundo", self.font_titles_background_opacity)
-        add_row(form, 10, "Digita por", self.font_titles_typ)
-        add_row(form, 11, "Apaga por", self.font_titles_era)
+        add_row(form, 0, "Margem X/Y", margins_widget(self.font_titles_mx, self.font_titles_my))
+        add_row(form, 1, "Fonte", self.font_inline_row(self.font_titles, self.font_titles_size, self.font_titles_color))
+        add_row(form, 2, "Opacidade", self.font_titles_opc)
+        add_row(form, 3, "Sombra do texto", self.toggle_color_row(self.font_titles_shadow_enabled, self.font_titles_shadow_color))
+        add_row(form, 4, "Tam. sombra", self.font_titles_shadow_size)
+        add_row(form, 5, "Opac. sombra", self.font_titles_shadow)
+        add_row(form, 6, "Fundo do texto", self.toggle_color_row(self.font_titles_background_box, self.font_titles_background_color))
+        add_row(form, 7, "Tam. fundo", self.font_titles_background_padding)
+        add_row(form, 8, "Opac. fundo", self.font_titles_background_opacity)
+        add_row(form, 9, "Digita por", self.font_titles_typ)
+        add_row(form, 10, "Apaga por", self.font_titles_era)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -234,7 +284,7 @@ class MainUI(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(8)
 
-        self.track_titles_table = QTableWidget(0, 1)
+        self.track_titles_table = TrackTitlesTable(0, 1)
         self.track_titles_table.setHorizontalHeaderLabels(["Nome"])
         self.track_titles_table.setShowGrid(True)
         self.track_titles_table.setCornerButtonEnabled(False)
@@ -249,13 +299,14 @@ class MainUI(QWidget):
 
         order_row = QHBoxLayout()
         order_row.addStretch(1)
-        self.btn_track_up = ActionButton("Subir", "ghost", 84)
-        self.btn_track_down = ActionButton("Descer", "ghost", 84)
+        self.btn_track_up = ActionButton("↑", "ghost", 42)
+        self.btn_track_down = ActionButton("↓", "ghost", 42)
+        self.btn_track_up.setToolTip("Mover música para cima")
+        self.btn_track_down.setToolTip("Mover música para baixo")
         self.btn_track_up.clicked.connect(lambda: self.move_track_row(-1))
         self.btn_track_down.clicked.connect(lambda: self.move_track_row(1))
         order_row.addWidget(self.btn_track_up)
         order_row.addWidget(self.btn_track_down)
-        order_row.addStretch(1)
         layout.addLayout(order_row)
         return tab
 
@@ -314,9 +365,8 @@ class MainUI(QWidget):
         self.intro_font_weight = QSpinBox(); self.intro_font_weight.setRange(100, 900); self.intro_font_weight.setSingleStep(50); self.intro_font_weight.setValue(700)
         self.intro_color = ColorSwatch("#FFFFFF")
         self.intro_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.90)
-        self.intro_pos = combo_posicao("inferior_esquerda")
-        self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 800); self.intro_mx.setValue(90)
-        self.intro_my = QSpinBox(); self.intro_my.setRange(0, 800); self.intro_my.setValue(120)
+        self.intro_mx = QSpinBox(); self.intro_mx.setRange(0, 1920); self.intro_mx.setValue(90)
+        self.intro_my = QSpinBox(); self.intro_my.setRange(0, 1080); self.intro_my.setValue(900)
         self.intro_shadow_color = ColorSwatch("#000000")
         self.intro_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.intro_shadow_enabled.setChecked(True)
@@ -327,17 +377,16 @@ class MainUI(QWidget):
         self.intro_box_opacity = DecimalSlider(0.0, 1.0, 0.05, 0.35)
         self.intro_background_padding = DecimalSlider(0.0, 40.0, 1.0, 6.0, decimals=0)
 
-        add_row(form, 0, "Posição", self.intro_pos)
-        add_row(form, 1, "Margens", margins_widget(self.intro_mx, self.intro_my))
-        add_row(form, 2, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
-        add_row(form, 3, "Peso", self.intro_font_weight)
-        add_row(form, 4, "Opacidade", self.intro_opacity)
-        add_row(form, 5, "Sombra do texto", self.toggle_color_row(self.intro_shadow_enabled, self.intro_shadow_color))
-        add_row(form, 6, "Tam. sombra", self.intro_shadow_size)
-        add_row(form, 7, "Opac. sombra", self.intro_shadow_opacity)
-        add_row(form, 8, "Fundo do texto", self.toggle_color_row(self.intro_background_box, self.intro_background_color))
-        add_row(form, 9, "Tam. fundo", self.intro_background_padding)
-        add_row(form, 10, "Opac. fundo", self.intro_box_opacity)
+        add_row(form, 0, "Margem X/Y", margins_widget(self.intro_mx, self.intro_my))
+        add_row(form, 1, "Fonte", self.font_inline_row(self.intro_font, self.intro_font_size, self.intro_color))
+        add_row(form, 2, "Peso", self.intro_font_weight)
+        add_row(form, 3, "Opacidade", self.intro_opacity)
+        add_row(form, 4, "Sombra do texto", self.toggle_color_row(self.intro_shadow_enabled, self.intro_shadow_color))
+        add_row(form, 5, "Tam. sombra", self.intro_shadow_size)
+        add_row(form, 6, "Opac. sombra", self.intro_shadow_opacity)
+        add_row(form, 7, "Fundo do texto", self.toggle_color_row(self.intro_background_box, self.intro_background_color))
+        add_row(form, 8, "Tam. fundo", self.intro_background_padding)
+        add_row(form, 9, "Opac. fundo", self.intro_box_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         return tab
@@ -410,9 +459,8 @@ class MainUI(QWidget):
         self.wm_font_size = QSpinBox(); self.wm_font_size.setRange(8, 180); self.wm_font_size.setValue(44)
         self.wm_color = ColorSwatch("#FFFFFF")
         self.wm_opacity = DecimalSlider(0.05, 1.0, 0.05, 0.70)
-        self.wm_pos = combo_posicao("inferior_direita")
-        self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 800); self.wm_mx.setValue(45)
-        self.wm_my = QSpinBox(); self.wm_my.setRange(0, 800); self.wm_my.setValue(42)
+        self.wm_mx = QSpinBox(); self.wm_mx.setRange(0, 1920); self.wm_mx.setValue(1695)
+        self.wm_my = QSpinBox(); self.wm_my.setRange(0, 1080); self.wm_my.setValue(950)
         self.wm_shadow_color = ColorSwatch("#000000")
         self.wm_shadow_enabled = ToggleSwitch("Sombra do texto")
         self.wm_shadow_enabled.setChecked(True)
@@ -428,16 +476,15 @@ class MainUI(QWidget):
         self.wm_preview_label = add_row(form, 2, "Preview", self.wm_image_preview)
         add_row(form, 3, "Imagem", self.wm_img)
         add_row(form, 4, "Largura img.", self.wm_width)
-        add_row(form, 5, "Posição", self.wm_pos)
-        add_row(form, 6, "Margens", margins_widget(self.wm_mx, self.wm_my))
-        add_row(form, 7, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
-        add_row(form, 8, "Opacidade", self.wm_opacity)
-        add_row(form, 9, "Sombra do texto", self.toggle_color_row(self.wm_shadow_enabled, self.wm_shadow_color))
-        add_row(form, 10, "Tam. sombra", self.wm_shadow_size)
-        add_row(form, 11, "Opac. sombra", self.wm_shadow)
-        add_row(form, 12, "Fundo do texto", self.toggle_color_row(self.wm_background_box, self.wm_background_color))
-        add_row(form, 13, "Tam. fundo", self.wm_background_padding)
-        add_row(form, 14, "Opac. fundo", self.wm_background_opacity)
+        add_row(form, 5, "Margem X/Y", margins_widget(self.wm_mx, self.wm_my))
+        add_row(form, 6, "Fonte", self.font_inline_row(self.wm_font, self.wm_font_size, self.wm_color))
+        add_row(form, 7, "Opacidade", self.wm_opacity)
+        add_row(form, 8, "Sombra do texto", self.toggle_color_row(self.wm_shadow_enabled, self.wm_shadow_color))
+        add_row(form, 9, "Tam. sombra", self.wm_shadow_size)
+        add_row(form, 10, "Opac. sombra", self.wm_shadow)
+        add_row(form, 11, "Fundo do texto", self.toggle_color_row(self.wm_background_box, self.wm_background_color))
+        add_row(form, 12, "Tam. fundo", self.wm_background_padding)
+        add_row(form, 13, "Opac. fundo", self.wm_background_opacity)
         layout.addWidget(centered_layout(form))
         layout.addStretch(1)
         self.wm_mode.currentTextChanged.connect(self.update_watermark_mode)
@@ -576,7 +623,7 @@ class MainUI(QWidget):
         height = escala(CONTROL_HEIGHT, zoom, 18)
         for child in self.findChildren(QWidget):
             if isinstance(child, ActionButton):
-                child.setFixedHeight(height)
+                child.set_zoom(zoom)
                 width = escala(getattr(child, "base_width", 112), zoom, 48)
                 if child.maximumWidth() < 16777215 and child.minimumWidth() == child.maximumWidth():
                     child.setFixedWidth(width)
@@ -789,9 +836,8 @@ class MainUI(QWidget):
             font_size=self.font_titles_size.value(),
             color=limpar_hex(self.font_titles_color.text()),
             opacity=self.font_titles_opc.value(),
-            position=self.font_titles_pos.currentData(),
-            margin_left=self.font_titles_mx.value(),
-            margin_bottom=self.font_titles_my.value(),
+            margin_x=self.font_titles_mx.value(),
+            margin_y=self.font_titles_my.value(),
             typing_duration=self.font_titles_typ.value(),
             erasing_duration=self.font_titles_era.value(),
             shadow_enabled=self.font_titles_shadow_enabled.isChecked(),
@@ -813,7 +859,6 @@ class MainUI(QWidget):
             font_size=self.wm_font_size.value(),
             color=limpar_hex(self.wm_color.text()),
             opacity=self.wm_opacity.value(),
-            position=self.wm_pos.currentData(),
             margin_x=self.wm_mx.value(),
             margin_y=self.wm_my.value(),
             shadow_enabled=self.wm_shadow_enabled.isChecked(),
@@ -843,7 +888,6 @@ class MainUI(QWidget):
             font_weight=self.intro_font_weight.value(),
             color=limpar_hex(self.intro_color.text()),
             opacity=self.intro_opacity.value(),
-            position=self.intro_pos.currentData(),
             margin_x=self.intro_mx.value(),
             margin_y=self.intro_my.value(),
             shadow_enabled=self.intro_shadow_enabled.isChecked(),
@@ -1012,9 +1056,8 @@ class MainUI(QWidget):
         self.font_titles_size.setValue(int(cfg.font_size))
         self.font_titles_color.setText(cfg.color)
         self.font_titles_opc.setValue(float(cfg.opacity))
-        self.set_combo_data(self.font_titles_pos, cfg.position)
-        self.font_titles_mx.setValue(int(cfg.margin_left))
-        self.font_titles_my.setValue(int(cfg.margin_bottom))
+        self.font_titles_mx.setValue(int(cfg.margin_x))
+        self.font_titles_my.setValue(int(cfg.margin_y))
         self.font_titles_typ.setValue(float(cfg.typing_duration))
         self.font_titles_era.setValue(float(cfg.erasing_duration))
         self.font_titles_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
@@ -1078,7 +1121,6 @@ class MainUI(QWidget):
         self.wm_font_size.setValue(int(cfg.font_size))
         self.wm_color.setText(cfg.color)
         self.wm_opacity.setValue(float(cfg.opacity))
-        self.set_combo_data(self.wm_pos, cfg.position)
         self.wm_mx.setValue(int(cfg.margin_x))
         self.wm_my.setValue(int(cfg.margin_y))
         self.wm_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
@@ -1103,7 +1145,6 @@ class MainUI(QWidget):
         self.intro_font_weight.setValue(int(cfg.font_weight))
         self.intro_color.setText(cfg.color)
         self.intro_opacity.setValue(float(cfg.opacity))
-        self.set_combo_data(self.intro_pos, cfg.position)
         self.intro_mx.setValue(int(cfg.margin_x))
         self.intro_my.setValue(int(cfg.margin_y))
         self.intro_shadow_enabled.setChecked(bool(getattr(cfg, "shadow_enabled", True)))
@@ -1127,23 +1168,14 @@ class MainUI(QWidget):
         if index >= 0:
             combo.setCurrentIndex(index)
 
-    @staticmethod
-    def set_combo_data(combo: QComboBox, value: str):
-        index = combo.findData(value)
-        if index >= 0:
-            combo.setCurrentIndex(index)
-
-    def apply_preview_drag_position(self, kind: str, position: str, margin_x: int, margin_y: int):
+    def apply_preview_drag_position(self, kind: str, margin_x: int, margin_y: int):
         if kind == "title":
-            self.set_combo_data(self.font_titles_pos, position)
             self.font_titles_mx.setValue(margin_x)
             self.font_titles_my.setValue(margin_y)
         elif kind == "intro":
-            self.set_combo_data(self.intro_pos, position)
             self.intro_mx.setValue(margin_x)
             self.intro_my.setValue(margin_y)
         elif kind == "watermark":
-            self.set_combo_data(self.wm_pos, position)
             self.wm_mx.setValue(margin_x)
             self.wm_my.setValue(margin_y)
         self.trigger_autosave()
@@ -1219,6 +1251,7 @@ class MainUI(QWidget):
         self.intro_table.itemChanged.connect(self.trigger_autosave)
         self.track_titles_table.itemChanged.connect(self.trigger_autosave)
         self.track_titles_table.itemSelectionChanged.connect(self.update_preview)
+        self.track_titles_table.rowsReordered.connect(self.track_rows_reordered)
 
     def trigger_autosave(self, *args):
         if not self._ui_ready or self._config_loading:
@@ -1226,6 +1259,10 @@ class MainUI(QWidget):
         self.record_undo_snapshot()
         self.autosave_timer.start()
         self.preview_timer.start()
+
+    def track_rows_reordered(self):
+        self.trigger_autosave()
+        self.update_preview()
 
     def update_watermark_mode(self, text: str):
         image_mode = text == "Imagem"
